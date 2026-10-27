@@ -806,6 +806,7 @@ void TreeUnwrapper::SetIndentationsAndCreatePartitions(
     case NodeEnum::kForwardDeclaration:
     case NodeEnum::kInterfaceClassMethod:
     case NodeEnum::kConstraintDeclaration:
+    case NodeEnum::kConstraintPrototype:
     case NodeEnum::kConstraintExpression:
     case NodeEnum::kCovergroupDeclaration:
     case NodeEnum::kCoverageOption:

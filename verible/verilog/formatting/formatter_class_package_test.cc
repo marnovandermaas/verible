@@ -984,6 +984,19 @@ static constexpr FormatterTestCase kClassPackageFormatterTestCases[] = {
      "  );\n"
      "endpackage\n"},
 
+    // constraint prototypes each go on their own line
+    {"class c;\n"
+     "constraint a_c; static constraint b_c;\n"
+     "extern   constraint c_c;   pure static constraint d_c;\n"
+     "endclass\n"
+     "constraint c::c_c { a > 0; }\n",
+     "class c;\n"
+     "  constraint a_c;\n"
+     "  static constraint b_c;\n"
+     "  extern constraint c_c;\n"
+     "  pure static constraint d_c;\n"
+     "endclass\n"
+     "constraint c::c_c {a > 0;}\n"},
 };
 
 TEST(FormatterEndToEndTest, ClassPackageFormatterTestCases) {

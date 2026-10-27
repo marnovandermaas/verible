@@ -5034,6 +5034,16 @@ static constexpr ParserTestCaseArray kClassMemberTests = {
     "  A + B <= C;\n"
     "}\n"
     "endclass",
+    // constraint prototypes
+    "class myclass extends uvm_object;\n"
+    "constraint a_c;\n"
+    "static constraint b_c;\n"
+    "extern constraint c_c;\n"
+    "extern static constraint d_c;\n"
+    "pure constraint e_c;\n"
+    "pure static constraint f_c;\n"
+    "extern static function void g();\n"
+    "endclass",
     "class myclass extends uvm_object;\n"
     "constraint size_c {\n"
     "  soft A inside {[1:10]};\n"
