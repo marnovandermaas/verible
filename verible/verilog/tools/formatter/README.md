@@ -59,6 +59,10 @@ To pipe from stdin, use '-' as <file>.
       default: infer;
     --formal_parameters_indentation (Indent formal parameters: {indent,wrap});
       default: wrap;
+    --function_ports_keep_one_per_line (If true, function and task port
+      lists written with a line break between ports keep one port per line,
+      even if they would fit on one line. Implies --function_ports_one_per_line
+      for those port lists.); default: false;
     --function_ports_one_per_line (If true, function and task port lists
       that do not fit on one line are formatted with one port per line,
       aligned to the open parenthesis if possible. If false (default), as

@@ -3358,6 +3358,59 @@ TEST(FormatterEndToEndTest, NamedParameterParenPaddingTestCases) {
   }
 }
 
+static constexpr FormatterTestCase kFunctionPortsKeepOnePerLineTestCases[] = {
+    // ports written on separate lines stay one per line, aligned to '('
+    {"class c;\n"
+     "extern function void f(int a,\n"
+     "int b);\n"
+     "extern task t(\n"
+     "int a,\n"
+     "int b);\n"
+     "endclass\n"
+     "function void c::f(int a,\n"
+     "int b);\n"
+     "endfunction\n",
+     "class c;\n"
+     "  extern function void f(int a,\n"
+     "                         int b);\n"
+     "  extern task t(int a,\n"
+     "                int b);\n"
+     "endclass\n"
+     "function void c::f(int a,\n"
+     "                   int b);\n"
+     "endfunction\n"},
+    // ports written on one line, and single ports, are joined if they fit
+    {"class c;\n"
+     "extern function void g(int a, int b);\n"
+     "extern function void h(\n"
+     "int a);\n"
+     "endclass\n",
+     "class c;\n"
+     "  extern function void g(int a, int b);\n"
+     "  extern function void h(int a);\n"
+     "endclass\n"},
+    // wrapped when aligning to '(' does not fit
+    {"class c;\n"
+     "extern function void a_really_long_function_name(input string symbol,\n"
+     "inout bit [7:0] data[]);\n"
+     "endclass\n",
+     "class c;\n"
+     "  extern function void a_really_long_function_name(\n"
+     "      input string symbol,\n"
+     "      inout bit [7:0] data[]);\n"
+     "endclass\n"},
+};
+
+TEST(FormatterEndToEndTest, FunctionPortsKeepOnePerLineTestCases) {
+  FormatStyle style;
+  style.column_limit = 60;
+  style.indentation_spaces = 2;
+  style.wrap_spaces = 4;
+  // function_ports_one_per_line is implied for these port lists.
+  style.function_ports_keep_one_per_line = true;
+  RunFormatterTestCases(style, kFunctionPortsKeepOnePerLineTestCases);
+}
+
 static constexpr FormatterTestCase kFunctionCallsWithComments[] = {
     {// no comments
      "module foo;\n"

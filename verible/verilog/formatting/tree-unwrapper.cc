@@ -1314,9 +1314,12 @@ void TreeUnwrapper::SetIndentationsAndCreatePartitions(
         const int indent = suppress_indentation ? 0 : style_.wrap_spaces;
         // kAlwaysExpand on the port list makes the enclosing
         // kAppendFittingSubPartitions header put one port per line when the
-        // header does not fit on one line.
+        // header does not fit on one line (and with
+        // function_ports_keep_one_per_line, when the ports were written on
+        // separate lines, see Formatter::Format).
         const bool one_per_line =
-            style_.function_ports_one_per_line &&
+            (style_.function_ports_one_per_line ||
+             style_.function_ports_keep_one_per_line) &&
             (Context().DirectParentsAre(
                  {NodeEnum::kParenGroup, NodeEnum::kFunctionHeader}) ||
              Context().DirectParentsAre(

@@ -164,6 +164,12 @@ ABSL_FLAG(bool, named_parameter_paren_padding, false,
           "when named parameters are aligned.  If false (default), no "
           "padding is inserted, e.g. \".Width(8)\".");
 
+ABSL_FLAG(bool, function_ports_keep_one_per_line, false,
+          "If true, function and task port lists written with a line break "
+          "between ports keep one port per line, even if they would fit on "
+          "one line.  Implies --function_ports_one_per_line for those port "
+          "lists.");
+
 ABSL_FLAG(bool, function_ports_one_per_line, false,
           "If true, function and task port lists that do not fit on one line "
           "are formatted with one port per line, aligned to the open "
@@ -232,6 +238,7 @@ void InitializeFromFlags(FormatStyle *style) {
   STYLE_FROM_FLAG(named_connection_paren_space);
   STYLE_FROM_FLAG(named_parameter_paren_padding);
   STYLE_FROM_FLAG(function_ports_one_per_line);
+  STYLE_FROM_FLAG(function_ports_keep_one_per_line);
   STYLE_FROM_FLAG(wrap_end_else_clauses);
   STYLE_FROM_FLAG(alignment_group_boundary);
 

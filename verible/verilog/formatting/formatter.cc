@@ -579,6 +579,31 @@ static void DeterminePartitionExpansion(
   }
 }
 
+// Returns true if the partition is a function or task header whose port list
+// (a kPortList partition with kAlwaysExpand, see TreeUnwrapper) was written
+// with a line break between ports in the original text.
+static bool IsFunctionHeaderWithPortsOnSeparateLines(
+    const TokenPartitionTree &node) {
+  for (const auto &child : node.Children()) {
+    const verible::Symbol *origin = child.Value().Origin();
+    if (origin == nullptr ||
+        origin->Tag() != verible::NodeTag(NodeEnum::kPortList) ||
+        child.Value().PartitionPolicy() != PartitionPolicyEnum::kAlwaysExpand) {
+      continue;
+    }
+    const auto tokens = child.Value().TokensRange();
+    if (tokens.empty()) continue;
+    // The tokens' text views point into the original text, so the span from
+    // the first to the last token includes the original whitespace.
+    const std::string_view first = tokens.front().token->text();
+    const std::string_view last = tokens.back().token->text();
+    const std::string_view original(
+        first.data(), last.data() + last.size() - first.data());
+    if (original.find('\n') != std::string_view::npos) return true;
+  }
+  return false;
+}
+
 // Produce a worklist of independently formattable UnwrappedLines.
 static std::vector<UnwrappedLine> MakeUnwrappedLinesWorklist(
     const FormatStyle &style, std::string_view full_text,
@@ -905,10 +930,19 @@ Status Formatter::Format(const ExecutionControl &control) {
       const auto partition_policy = uwline.PartitionPolicy();
 
       switch (partition_policy) {
-        case PartitionPolicyEnum::kAppendFittingSubPartitions:
+        case PartitionPolicyEnum::kAppendFittingSubPartitions: {
+          // Ports written on separate lines stay one per line, even if the
+          // header would fit on one line.
+          const bool keep_one_per_line =
+              style_.function_ports_keep_one_per_line &&
+              IsFunctionHeaderWithPortsOnSeparateLines(node);
           // Reshape partition tree with kAppendFittingSubPartitions policy
           verible::ReshapeFittingSubpartitions(style_, &node);
+          if (keep_one_per_line) {
+            node.Value().SetPartitionPolicy(PartitionPolicyEnum::kAlwaysExpand);
+          }
           break;
+        }
         case PartitionPolicyEnum::kJuxtaposition:
         case PartitionPolicyEnum::kStack:
         case PartitionPolicyEnum::kWrap:

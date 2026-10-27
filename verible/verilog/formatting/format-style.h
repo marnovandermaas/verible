@@ -170,6 +170,11 @@ struct FormatStyle : public verible::BasicFormatStyle {
   // packing as many ports per line as fit.
   bool function_ports_one_per_line = false;
 
+  // Keep function and task port lists that are written with a line break
+  // between ports one port per line, even if they would fit on one line.
+  // Implies function_ports_one_per_line for those port lists.
+  bool function_ports_keep_one_per_line = false;
+
   // Split with a \n end and else clauses
   bool wrap_end_else_clauses = false;
 
