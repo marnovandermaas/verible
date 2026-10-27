@@ -343,6 +343,16 @@ static WithReason<int> SpacesRequiredBetween(
     // General handling of ID '(' spacing:
     if (left.format_token_enum == FormatTokenType::identifier ||
         IsKeywordCallable(verilog_tokentype(left.TokenEnum()))) {
+      // ".name (expr)" in named port connections and named parameter
+      // assignments.  Only the connection's own parentheses are affected,
+      // not calls nested inside the connected expression.
+      if (style.named_connection_paren_space &&
+          (right_context.DirectParentsAre(
+               {NodeEnum::kParenGroup, NodeEnum::kActualNamedPort}) ||
+           right_context.DirectParentsAre(
+               {NodeEnum::kParenGroup, NodeEnum::kParamByName}))) {
+        return {1, "Named connection: want space between ID and '('"};
+      }
       // TODO(fangism): This logic should use .DirectParentIs() to minimize risk
       // of unintended reach.
       if (right_context.IsInside(NodeEnum::kActualNamedPort) ||

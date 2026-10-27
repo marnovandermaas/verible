@@ -3153,6 +3153,67 @@ TEST(FormatterEndToEndTest, SpaceBeforeHashInUnqualifiedTypedefTestCases) {
   }
 }
 
+static constexpr FormatterTestCase kNamedConnectionParenSpaceTestCases[] = {
+    // port connections are always expanded one per line
+    {"module m;\n"
+     "foo u_foo(.a(a), .bb(b));\n"
+     "endmodule\n",
+     "module m;\n"
+     "  foo u_foo (\n"
+     "      .a  (a),\n"
+     "      .bb (b)\n"
+     "  );\n"
+     "endmodule\n"},
+    // aligned ports and parameters, existing space removed from nested calls
+    {"module m;\n"
+     "foo #(.Width(8), .DepthW($clog2 (Depth))) u_foo(\n"
+     ".clk_i(clk), .rst_ni(rst_n), .d_i(f(x)), .q_o());\n"
+     "endmodule\n",
+     "module m;\n"
+     "  foo #(\n"
+     "      .Width  (8),\n"
+     "      .DepthW ($clog2(Depth))\n"
+     "  ) u_foo (\n"
+     "      .clk_i  (clk),\n"
+     "      .rst_ni (rst_n),\n"
+     "      .d_i    (f(x)),\n"
+     "      .q_o    ()\n"
+     "  );\n"
+     "endmodule\n"},
+    // implicit ".name" connections are unaffected
+    {"module m;\n"
+     "foo u_foo(.clk_i, .data_i(d));\n"
+     "endmodule\n",
+     "module m;\n"
+     "  foo u_foo (\n"
+     "      .clk_i,\n"
+     "      .data_i (d)\n"
+     "  );\n"
+     "endmodule\n"},
+    // named parameters of a class type
+    {"typedef my_class#(.P(P)) my_class_t;\n",
+     "typedef my_class#(.P (P)) my_class_t;\n"},
+};
+
+TEST(FormatterEndToEndTest, NamedConnectionParenSpaceTestCases) {
+  // Use a fixed style.
+  FormatStyle style;
+  style.column_limit = 40;
+  style.indentation_spaces = 2;
+  style.wrap_spaces = 4;
+  style.named_connection_paren_space = true;
+
+  for (const auto &test_case : kNamedConnectionParenSpaceTestCases) {
+    VLOG(1) << "code-to-format:\n" << test_case.input << "<EOF>";
+    std::ostringstream stream;
+    const auto status =
+        FormatVerilog(test_case.input, "<filename>", style, stream);
+    // Require these test cases to be valid.
+    EXPECT_OK(status) << status.message();
+    EXPECT_EQ(stream.str(), test_case.expected) << "code:\n" << test_case.input;
+  }
+}
+
 static constexpr FormatterTestCase kFunctionCallsWithComments[] = {
     {// no comments
      "module foo;\n"

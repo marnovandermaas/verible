@@ -149,6 +149,10 @@ struct FormatStyle : public verible::BasicFormatStyle {
   // Keep/insert a space before '#' in a parameterized class typedef
   bool class_parameter_space = false;
 
+  // Insert a space between the name and '(' of named port connections and
+  // named parameter assignments, e.g. ".clk_i (clk)" instead of ".clk_i(clk)".
+  bool named_connection_paren_space = false;
+
   // Split with a \n end and else clauses
   bool wrap_end_else_clauses = false;
 

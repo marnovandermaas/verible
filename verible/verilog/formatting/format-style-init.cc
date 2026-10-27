@@ -147,6 +147,12 @@ ABSL_FLAG(bool, class_parameter_space, false,
           "matching the convention used for IEEE parameterized class "
           "instantiations, e.g. \"type#(params...)::method(...)\".");
 
+ABSL_FLAG(bool, named_connection_paren_space, false,
+          "If true, insert a space between the name and '(' of named port "
+          "connections and named parameter assignments, e.g. "
+          "\".clk_i (clk)\" and \"#(.Width (8))\".  If false (default), no "
+          "space is inserted, e.g. \".clk_i(clk)\".");
+
 ABSL_FLAG(bool, wrap_end_else_clauses, false,
           "Split end and else keywords into separate lines");
 
@@ -205,6 +211,7 @@ void InitializeFromFlags(FormatStyle *style) {
   STYLE_FROM_FLAG(expand_coverpoints);
   STYLE_FROM_FLAG(compact_indexing_and_selections);
   STYLE_FROM_FLAG(class_parameter_space);
+  STYLE_FROM_FLAG(named_connection_paren_space);
   STYLE_FROM_FLAG(wrap_end_else_clauses);
   STYLE_FROM_FLAG(alignment_group_boundary);
 

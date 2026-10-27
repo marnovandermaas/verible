@@ -62,6 +62,10 @@ To pipe from stdin, use '-' as <file>.
     --module_net_variable_alignment (Format net/variable declarations
       in module, generate, interface, and package bodies:
       {align,flush-left,preserve,infer}); default: infer;
+    --named_connection_paren_space (If true, insert a space between the
+      name and '(' of named port connections and named parameter
+      assignments, e.g. ".clk_i (clk)" and "#(.Width (8))". If false
+      (default), no space is inserted, e.g. ".clk_i(clk)".); default: false;
     --named_parameter_alignment (Format named actual parameters:
       {align,flush-left,preserve,infer}); default: infer;
     --named_parameter_indentation (Indent named parameter assignments:
