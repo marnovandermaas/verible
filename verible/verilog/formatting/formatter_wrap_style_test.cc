@@ -3300,6 +3300,64 @@ TEST(FormatterEndToEndTest, FunctionPortsOnePerLine60TestCases) {
   }
 }
 
+static constexpr FormatterTestCase kNamedParameterParenPaddingTestCases[] = {
+    // closing parentheses are aligned, empty parentheses are "( )"
+    {"module m;\n"
+     "foo #(.Width(8), .DepthW($clog2(D)), .U()) u_foo(.a(a));\n"
+     "endmodule\n",
+     "module m;\n"
+     "  foo #(\n"
+     "      .Width ( 8         ),\n"
+     "      .DepthW( $clog2(D) ),\n"
+     "      .U     ( )\n"
+     "  ) u_foo (\n"
+     "      .a(a)\n"
+     "  );\n"
+     "endmodule\n"},
+    // nested parentheses and named arguments of calls are not padded
+    {"module m;\n"
+     "foo #(.A(pkg::a_long_value), .D(a + f(.x(1)))) u(.a(a));\n"
+     "endmodule\n",
+     "module m;\n"
+     "  foo #(\n"
+     "      .A( pkg::a_long_value ),\n"
+     "      .D( a + f(.x(1))      )\n"
+     "  ) u (\n"
+     "      .a(a)\n"
+     "  );\n"
+     "endmodule\n"},
+    // single parameter, class type parameters, function call arguments
+    {"module m;\n"
+     "foo #(.W(8)) u_bar(.a(a));\n"
+     "initial cfg(.en(1));\n"
+     "endmodule\n",
+     "module m;\n"
+     "  foo #(.W( 8 )) u_bar (.a(a));\n"
+     "  initial cfg(.en(1));\n"
+     "endmodule\n"},
+    {"typedef my_class#(.P(P)) my_class_t;\n",
+     "typedef my_class#(.P( P )) my_class_t;\n"},
+};
+
+TEST(FormatterEndToEndTest, NamedParameterParenPaddingTestCases) {
+  // Use a fixed style.
+  FormatStyle style;
+  style.column_limit = 40;
+  style.indentation_spaces = 2;
+  style.wrap_spaces = 4;
+  style.named_parameter_paren_padding = true;
+
+  for (const auto &test_case : kNamedParameterParenPaddingTestCases) {
+    VLOG(1) << "code-to-format:\n" << test_case.input << "<EOF>";
+    std::ostringstream stream;
+    const auto status =
+        FormatVerilog(test_case.input, "<filename>", style, stream);
+    // Require these test cases to be valid.
+    EXPECT_OK(status) << status.message();
+    EXPECT_EQ(stream.str(), test_case.expected) << "code:\n" << test_case.input;
+  }
+}
+
 static constexpr FormatterTestCase kFunctionCallsWithComments[] = {
     {// no comments
      "module foo;\n"

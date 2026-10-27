@@ -143,6 +143,15 @@ static bool IsPathSeparatorSlashInMacroArg(
          InMacroArgumentContext(right_context);
 }
 
+// Returns true if a parenthesis token with the given context belongs directly
+// to a named parameter assignment, e.g. the parentheses of "#(.Width (8))",
+// but not those of named arguments in function calls.
+static bool IsNamedParameterParen(const SyntaxTreeContext &context) {
+  return context.DirectParentsAre({NodeEnum::kParenGroup,
+                                   NodeEnum::kParamByName,
+                                   NodeEnum::kActualParameterByNameList});
+}
+
 static bool IsAnySemicolon(const PreFormatToken &ftoken) {
   // These are just syntactically disambiguated versions of ';'.
   return ftoken.TokenEnum() == ';' ||
@@ -176,6 +185,17 @@ static WithReason<int> SpacesRequiredBetween(
   if (IsComment(FormatTokenType(right.format_token_enum))) {
     return {2, "Style: require 2+ spaces before comments"};
     // TODO(fangism): Take this from FormatStyle.
+  }
+
+  // ".Width ( 8 )" and ".Unused ( )": only the parentheses of the named
+  // parameter assignment itself, not of expressions inside it.
+  if (style.named_parameter_paren_padding && right.TokenEnum() == ')' &&
+      IsNamedParameterParen(right_context)) {
+    return {1, "Named parameter: want space before ')'"};
+  }
+  if (style.named_parameter_paren_padding && left.TokenEnum() == '(' &&
+      IsNamedParameterParen(left_context)) {
+    return {1, "Named parameter: want space after '('"};
   }
 
   if (left.format_token_enum == FormatTokenType::open_group ||
@@ -350,9 +370,7 @@ static WithReason<int> SpacesRequiredBetween(
       if (style.named_connection_paren_space &&
           (right_context.DirectParentsAre(
                {NodeEnum::kParenGroup, NodeEnum::kActualNamedPort}) ||
-           right_context.DirectParentsAre(
-               {NodeEnum::kParenGroup, NodeEnum::kParamByName,
-                NodeEnum::kActualParameterByNameList}))) {
+           IsNamedParameterParen(right_context))) {
         return {1, "Named connection: want space between ID and '('"};
       }
       // TODO(fangism): This logic should use .DirectParentIs() to minimize risk

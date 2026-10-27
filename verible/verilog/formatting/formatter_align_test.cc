@@ -2667,6 +2667,20 @@ static constexpr FormatterTestCase kAlignFormatterTestCases[] = {
      "  end\n"
      "endmodule\n"},
 
+    // named arguments of a function call inside a named parameter value are
+    // not aligned with the parameters
+    {"module m;\n"
+     "foo #(.A(pkg::a_long_value), .D(a + f(.x(1)))) u(.a(a));\n"
+     "endmodule\n",
+     "module m;\n"
+     "  foo #(\n"
+     "      .A(pkg::a_long_value),\n"
+     "      .D(a + f(.x(1)))\n"
+     "  ) u (\n"
+     "      .a(a)\n"
+     "  );\n"
+     "endmodule\n"},
+
     // generate if with function call
 
     {"module zx;\n"

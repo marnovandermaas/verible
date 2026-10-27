@@ -153,6 +153,11 @@ struct FormatStyle : public verible::BasicFormatStyle {
   // named parameter assignments, e.g. ".clk_i (clk)" instead of ".clk_i(clk)".
   bool named_connection_paren_space = false;
 
+  // Pad the parentheses of named parameter assignments with spaces, e.g.
+  // ".Width ( 8 )" instead of ".Width (8)", and ".Unused ( )". When named
+  // parameters are aligned, the closing parentheses are aligned too.
+  bool named_parameter_paren_padding = false;
+
   // Format function and task port lists that do not fit on one line with one
   // port per line, aligned to the open parenthesis if possible, instead of
   // packing as many ports per line as fit.

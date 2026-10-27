@@ -362,23 +362,62 @@ class ActualNamedParameterColumnSchemaScanner
     auto tag = NodeEnum(node.Tag().tag);
     VLOG(2) << __FUNCTION__ << ", node: " << tag << " at "
             << TreePathFormatter(Path());
+    // The scanner starts at the aligned row's kParamByName. Columns are only
+    // created for it, not for named arguments of function calls nested in its
+    // value, e.g. ".Depth (f(.x(1)))".
     switch (tag) {
       case NodeEnum::kParamByName: {
         // Always start first column right away
-        ReserveNewColumn(node, FlushLeft);
+        if (!Context().IsInside(NodeEnum::kParamByName)) {
+          ReserveNewColumn(node, FlushLeft);
+        }
         break;
       }
       case NodeEnum::kParenGroup:
         // Second column starts at the open parenthesis.
-        if (Context().DirectParentIs(NodeEnum::kParamByName)) {
+        if (Context().DirectParentIs(NodeEnum::kParamByName) &&
+            !Context().IsInsideStartingFrom(NodeEnum::kParamByName, 1)) {
           ReserveNewColumn(node, FlushLeft);
         }
         break;
       default:
+        // With padded parentheses, the value gets its own column so that the
+        // closing parentheses line up: ".a   ( 1    )".
+        if (InPaddedParamParens()) {
+          ReserveNewColumn(node, FlushLeft);
+        }
         break;
     }
     TreeContextPathVisitor::Visit(node);
     VLOG(2) << __FUNCTION__ << ", leaving node: " << tag;
+  }
+
+  void Visit(const SyntaxTreeLeaf &leaf) final {
+    // The value (when it is a single token) and the closing parenthesis start
+    // new columns. The open parenthesis stays in the paren group's column.
+    if (!InPaddedParamParens()) return;
+    const int token = leaf.get().token_enum();
+    if (token == '(') return;
+    const SyntaxTreeNode &paren_group = Context().top();
+    if (token == ')' && paren_group.size() == 3 && paren_group[1] == nullptr) {
+      // Empty "( )": put ')' in the value column, so that it neither widens
+      // the '(' column nor is pushed out to align with the other ')'.
+      SyntaxTreePath value_path = Path();
+      value_path.back() = 1;
+      ReserveNewColumn(leaf, FlushLeft, value_path);
+      return;
+    }
+    ReserveNewColumn(leaf, FlushLeft);
+  }
+
+ private:
+  // True for direct children of the parentheses of the row's named parameter
+  // assignment, when these are padded.
+  bool InPaddedParamParens() const {
+    return style_.named_parameter_paren_padding &&
+           Context().DirectParentsAre(
+               {NodeEnum::kParenGroup, NodeEnum::kParamByName}) &&
+           !Context().IsInsideStartingFrom(NodeEnum::kParamByName, 2);
   }
 };
 

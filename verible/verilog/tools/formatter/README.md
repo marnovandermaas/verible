@@ -74,6 +74,10 @@ To pipe from stdin, use '-' as <file>.
       {align,flush-left,preserve,infer}); default: infer;
     --named_parameter_indentation (Indent named parameter assignments:
       {indent,wrap}); default: wrap;
+    --named_parameter_paren_padding (If true, pad the parentheses of named
+      parameter assignments with spaces, e.g. ".Width ( 8 )", and align the
+      closing parentheses when named parameters are aligned. If false
+      (default), no padding is inserted, e.g. ".Width(8)".); default: false;
     --named_port_alignment (Format named port connections:
       {align,flush-left,preserve,infer}); default: infer;
     --named_port_indentation (Indent named port connections: {indent,wrap});
