@@ -164,6 +164,10 @@ ABSL_FLAG(bool, named_parameter_paren_padding, false,
           "when named parameters are aligned.  If false (default), no "
           "padding is inserted, e.g. \".Width(8)\".");
 
+ABSL_FLAG(int, eol_comment_spacing, 2,
+          "Minimum number of spaces before a '//' comment that follows code "
+          "on the same line.");
+
 ABSL_FLAG(bool, function_ports_keep_one_per_line, false,
           "If true, function and task port lists written with a line break "
           "between ports keep one port per line, even if they would fit on "
@@ -239,6 +243,7 @@ void InitializeFromFlags(FormatStyle *style) {
   STYLE_FROM_FLAG(named_parameter_paren_padding);
   STYLE_FROM_FLAG(function_ports_one_per_line);
   STYLE_FROM_FLAG(function_ports_keep_one_per_line);
+  STYLE_FROM_FLAG(eol_comment_spacing);
   STYLE_FROM_FLAG(wrap_end_else_clauses);
   STYLE_FROM_FLAG(alignment_group_boundary);
 

@@ -182,6 +182,11 @@ static WithReason<int> SpacesRequiredBetween(
     return {0, "Add no spaces after \\ line continuation."};
   }
 
+  if (right.TokenEnum() == verilog_tokentype::TK_EOL_COMMENT) {
+    // At least one space: "a / // c" must not become "a /// c".
+    return {std::max(1, style.eol_comment_spacing),
+            "Style: require eol_comment_spacing+ spaces before // comments"};
+  }
   if (IsComment(FormatTokenType(right.format_token_enum))) {
     return {2, "Style: require 2+ spaces before comments"};
     // TODO(fangism): Take this from FormatStyle.

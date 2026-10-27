@@ -175,6 +175,10 @@ struct FormatStyle : public verible::BasicFormatStyle {
   // Implies function_ports_one_per_line for those port lists.
   bool function_ports_keep_one_per_line = false;
 
+  // Minimum number of spaces before a '//' comment that follows code on the
+  // same line, e.g. "x = 1;  // comment". Values below 1 are treated as 1.
+  int eol_comment_spacing = 2;
+
   // Split with a \n end and else clauses
   bool wrap_end_else_clauses = false;
 

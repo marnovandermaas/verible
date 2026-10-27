@@ -51,6 +51,8 @@ To pipe from stdin, use '-' as <file>.
       indexing / bit selection operators); default: true;
     --distribution_items_alignment (Align distribution items:
       {align,flush-left,preserve,infer}); default: infer;
+    --eol_comment_spacing (Minimum number of spaces before a '//' comment
+      that follows code on the same line.); default: 2;
     --enum_assignment_statement_alignment (Format assignments with enums:
       {align,flush-left,preserve,infer}); default: infer;
     --expand_coverpoints (If true, always expand coverpoints.); default: false;

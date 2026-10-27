@@ -3411,6 +3411,54 @@ TEST(FormatterEndToEndTest, FunctionPortsKeepOnePerLineTestCases) {
   RunFormatterTestCases(style, kFunctionPortsKeepOnePerLineTestCases);
 }
 
+TEST(FormatterEndToEndTest, EolCommentSpacing) {
+  static constexpr FormatterTestCase kTestCases[] = {
+      // one space before trailing '//' comments, block comments unchanged
+      {"module m;\n"
+       "logic a;     // one\n"
+       "assign a = b;// two\n"
+       "assign c = d; /* three */\n"
+       "// own line\n"
+       "endmodule\n",
+       "module m;\n"
+       "  logic a; // one\n"
+       "  assign a = b; // two\n"
+       "  assign c = d;  /* three */\n"
+       "  // own line\n"
+       "endmodule\n"},
+      // aligned trailing comments keep one space after the longest row
+      {"module m;\n"
+       "foo u_foo(.a(a), // a\n"
+       ".bbbb(b) // b\n"
+       ");\n"
+       "endmodule\n",
+       "module m;\n"
+       "  foo u_foo (\n"
+       "      .a   (a), // a\n"
+       "      .bbbb(b)  // b\n"
+       "  );\n"
+       "endmodule\n"},
+      // never zero spaces: "f / // g" stays a division and a comment
+      {"module m;\n"
+       "assign e = f / // g\n"
+       "h;\n"
+       "endmodule\n",
+       "module m;\n"
+       "  assign e = f / // g\n"
+       "      h;\n"
+       "endmodule\n"},
+  };
+  FormatStyle style;
+  style.column_limit = 40;
+  style.indentation_spaces = 2;
+  style.wrap_spaces = 4;
+  style.eol_comment_spacing = 1;
+  RunFormatterTestCases(style, kTestCases);
+  // Values below 1 are treated as 1.
+  style.eol_comment_spacing = 0;
+  RunFormatterTestCases(style, kTestCases);
+}
+
 static constexpr FormatterTestCase kFunctionCallsWithComments[] = {
     {// no comments
      "module foo;\n"
