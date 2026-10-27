@@ -2567,6 +2567,106 @@ static constexpr FormatterTestCase kAlignFormatterTestCases[] = {
      "  else assign x = y;\n"
      "endmodule\n"},
 
+    // if headers with function calls wrap the condition instead of
+    // expanding each call's argument list
+    {"module m;\n"
+     "always_comb begin\n"
+     "if (aa.exists(k) && bb.exists(k) && cc.size() > 0) x = 1;\n"
+     "else if (foo(aaaa) && bar(bbbb) && baz(cccc)) x = 2;\n"
+     "end\n"
+     "endmodule\n",
+     "module m;\n"
+     "  always_comb begin\n"
+     "    if (aa.exists(k) && bb.exists(k) &&\n"
+     "        cc.size() > 0)\n"
+     "      x = 1;\n"
+     "    else if (foo(aaaa) && bar(bbbb) &&\n"
+     "             baz(cccc))\n"
+     "      x = 2;\n"
+     "  end\n"
+     "endmodule\n"},
+    {"module m;\n"
+     "if (foo(aaaa) && bar(bbbb) && baz(cccc)) begin : g\n"
+     "end\n"
+     "endmodule\n",
+     "module m;\n"
+     "  if (foo(aaaa) && bar(bbbb) &&\n"
+     "      baz(cccc)) begin : g\n"
+     "  end\n"
+     "endmodule\n"},
+
+    // comments between a control header and a function call statement stay
+    // on their own line instead of absorbing the call
+    {"module m;\n"
+     "always_comb begin\n"
+     "if (x)\n"
+     "// c\n"
+     "foo(a, b);\n"
+     "end\n"
+     "endmodule\n",
+     "module m;\n"
+     "  always_comb begin\n"
+     "    if (x)\n"
+     "      // c\n"
+     "      foo(a, b);\n"
+     "  end\n"
+     "endmodule\n"},
+    {"module m;\n"
+     "always_comb begin\n"
+     "if (x)\n"
+     "// c\n"
+     "foo(aaaaaaaaaaaa, bbbbbbbbbbbb, cccccccccccc);\n"
+     "end\n"
+     "endmodule\n",
+     "module m;\n"
+     "  always_comb begin\n"
+     "    if (x)\n"
+     "      // c\n"
+     "      foo(aaaaaaaaaaaa, bbbbbbbbbbbb,\n"
+     "          cccccccccccc);\n"
+     "  end\n"
+     "endmodule\n"},
+    {"module m;\n"
+     "always_comb begin\n"
+     "case (s)\n"
+     "A:\n"
+     "// c\n"
+     "foo(a, b);\n"
+     "default: ;\n"
+     "endcase\n"
+     "end\n"
+     "endmodule\n",
+     "module m;\n"
+     "  always_comb begin\n"
+     "    case (s)\n"
+     "      A:\n"
+     "      // c\n"
+     "      foo(a, b);\n"
+     "      default: ;\n"
+     "    endcase\n"
+     "  end\n"
+     "endmodule\n"},
+    // case items with comments are not aligned, which would join the comment
+    // and the statement on one line
+    {"module m;\n"
+     "always_comb begin\n"
+     "case (s)\n"
+     "A: // c\n"
+     "x = 1;\n"
+     "default: ;\n"
+     "endcase\n"
+     "end\n"
+     "endmodule\n",
+     "module m;\n"
+     "  always_comb begin\n"
+     "    case (s)\n"
+     "      A:  // c\n"
+     "      x = 1;\n"
+     "      default: ;\n"
+     "    endcase\n"
+     "  end\n"
+     "endmodule\n"},
+
     // generate if with function call
 
     {"module zx;\n"

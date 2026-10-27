@@ -3193,6 +3193,20 @@ static constexpr FormatterTestCase kNamedConnectionParenSpaceTestCases[] = {
     // named parameters of a class type
     {"typedef my_class#(.P(P)) my_class_t;\n",
      "typedef my_class#(.P (P)) my_class_t;\n"},
+    // named arguments of function calls are unaffected
+    {"module m;\n"
+     "initial cfg(.en(1), .rx(f(.x(0))));\n"
+     "endmodule\n",
+     "module m;\n"
+     "  initial cfg(.en(1), .rx(f(.x(0))));\n"
+     "endmodule\n"},
+    // but a named port connection inside them still gets the space
+    {"module m;\n"
+     "foo u_foo(.a(f(.x(1))));\n"
+     "endmodule\n",
+     "module m;\n"
+     "  foo u_foo (.a (f(.x(1))));\n"
+     "endmodule\n"},
 };
 
 TEST(FormatterEndToEndTest, NamedConnectionParenSpaceTestCases) {

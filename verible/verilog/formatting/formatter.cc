@@ -507,13 +507,33 @@ static void DeterminePartitionExpansion(
     }
 
     case PartitionPolicyEnum::kFitOnLineElseExpand: {
+      // If headers containing function calls are wrapped like assignments
+      // below, instead of expanding every call's argument list:
+      //   if (a.exists(key) && b.exists(key) &&
+      //       c.size() > 0) begin
+      // Headers containing comments keep the expanded layout, which places
+      // comments before and inside the header on their own lines.
+      const bool is_if_header_without_comments =
+          uwline.Origin() &&
+          (uwline.Origin()->Tag().tag ==
+               static_cast<int>(NodeEnum::kIfHeader) ||
+           uwline.Origin()->Tag().tag ==
+               static_cast<int>(NodeEnum::kGenerateIfHeader)) &&
+          std::none_of(uwline.TokensRange().begin(),
+                       uwline.TokensRange().end(),
+                       [](const verible::PreFormatToken &token) {
+                         const auto e = token.TokenEnum();
+                         return e == verilog_tokentype::TK_EOL_COMMENT ||
+                                e == verilog_tokentype::TK_COMMENT_BLOCK;
+                       });
       if (uwline.Origin() &&
           (uwline.Origin()->Tag().tag ==
                static_cast<int>(NodeEnum::kNetVariableAssignment) ||
            uwline.Origin()->Tag().tag ==
                static_cast<int>(NodeEnum::kBlockItemStatementList) ||
            uwline.Origin()->Tag().tag ==
-               static_cast<int>(NodeEnum::kBlockingAssignmentStatement))) {
+               static_cast<int>(NodeEnum::kBlockingAssignmentStatement) ||
+           is_if_header_without_comments)) {
         // Align unnamed parameters in function call. Example:
         // always_comb begin
         //   value = function_name(8'hA, signal,

@@ -816,6 +816,57 @@ static void CollapseHeaderFragmentsBeforeArgs(TokenPartitionTree *node) {
   }
 }
 
+// Splits off leading leaf partitions that are followed by a forced line break,
+// e.g. a comment on its own line before a function call:
+//
+// { ([// comment]) }
+// { ([foo (]) }          // must wrap
+// { ([a , b ) ;]) }
+//
+// Merging these leaves into the header would put the comment and the code
+// that follows it on one line. Instead, the leaves are kept as separate lines,
+// and the remaining partitions are moved into a new subnode that keeps the
+// kAppendFittingSubPartitions policy. Returns true if partitions were split
+// off, in which case the new subnode (the last child) still has to be
+// reshaped.
+static bool SplitOffLeadingForcedBreakLeaves(TokenPartitionTree *node) {
+  const auto &children = node->Children();
+  // Only header fragments that CollapseHeaderFragmentsBeforeArgs would merge
+  // are affected: leading leaves followed by a leaf, with arguments after them.
+  // A forced break between the header and the arguments is already handled.
+  if (CountNonLeafChildren(*node) < 1) return false;
+  size_t count = 0;
+  while (count + 1 < children.size() && is_leaf(children[count]) &&
+         is_leaf(children[count + 1])) {
+    const auto next_range = children[count + 1].Value().TokensRange();
+    if (next_range.empty() || next_range.front().before.break_decision !=
+                                  SpacingOptions::kMustWrap) {
+      break;
+    }
+    ++count;
+  }
+  if (count == 0) return false;
+
+  UnwrappedLine rest_uwline = node->Value();
+  rest_uwline.SpanBackToToken(children[count].Value().TokensRange().begin());
+  rest_uwline.SetIndentationSpaces(children[count].Value().IndentationSpaces());
+
+  TokenPartitionTree temporary_tree(node->Value());
+  for (size_t i = 0; i < count; ++i) {
+    temporary_tree.Children().push_back(children[i]);
+  }
+  temporary_tree.Children().emplace_back(rest_uwline);
+  auto &rest = temporary_tree.Children().back();
+  for (size_t i = count; i < children.size(); ++i) {
+    rest.Children().push_back(children[i]);
+  }
+
+  node->Children().clear();
+  AdoptSubtreesFrom(*node, &temporary_tree);
+  node->Value().SetPartitionPolicy(PartitionPolicyEnum::kAlwaysExpand);
+  return true;
+}
+
 void ReshapeFittingSubpartitions(const BasicFormatStyle &style,
                                  TokenPartitionTree *node) {
   VLOG(4) << __FUNCTION__ << ", before:\n" << *node;
@@ -824,6 +875,14 @@ void ReshapeFittingSubpartitions(const BasicFormatStyle &style,
   // Leaf or simple node, e.g. '[function foo ( ) ;]'
   if (node->Children().size() < 2) {
     // Nothing to do
+    return;
+  }
+
+  // The remaining partitions are reshaped when the pre-order traversal of the
+  // caller reaches the new subnode.
+  if (SplitOffLeadingForcedBreakLeaves(node)) {
+    VLOG(4) << __FUNCTION__ << ", after splitting off leading lines:\n"
+            << *node;
     return;
   }
 

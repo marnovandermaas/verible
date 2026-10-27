@@ -250,6 +250,12 @@ TokenPartitionTree *MergeLeafIntoNextLeaf(TokenPartitionTree *leaf);
 //     { (>>>>>>[type_f ffff ) ;]) }
 //   }
 // }
+//
+// Leading leaf partitions that are followed by a forced line break (e.g. a
+// comment on its own line) are kept as separate lines instead. The node's
+// policy becomes kAlwaysExpand and the remaining partitions are moved into a
+// new last child with kAppendFittingSubPartitions policy, which the caller
+// must reshape as well (a pre-order traversal does this naturally).
 void ReshapeFittingSubpartitions(const verible::BasicFormatStyle &style,
                                  TokenPartitionTree *node);
 

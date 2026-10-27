@@ -302,8 +302,22 @@ static bool IgnoreMultilineCaseStatements(const TokenPartitionTree &partition) {
   const auto token_range = uwline.TokensRange();
 
   // Scan for any tokens that would force a line break.
-  return std::any_of(token_range.begin(), token_range.end(),
-                     &TokenForcesLineBreak);
+  if (std::any_of(token_range.begin(), token_range.end(),
+                  &TokenForcesLineBreak)) {
+    return true;
+  }
+
+  // Comments inside the case item force line breaks too, e.g. an EOL comment
+  // after the case label. Aligning such an item would join the comment and
+  // the statement on one line.
+  return std::any_of(
+      token_range.begin() + 1, token_range.end(),
+      [&token_range](const PreFormatToken &ftoken) {
+        return ftoken.before.break_decision ==
+                   verible::SpacingOptions::kMustWrap ||
+               (ftoken.TokenEnum() == verilog_tokentype::TK_EOL_COMMENT &&
+                &ftoken != &token_range.back());
+      });
 }
 
 class VerilogColumnSchemaScanner : public ColumnSchemaScanner {
