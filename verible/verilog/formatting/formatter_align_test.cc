@@ -3323,6 +3323,122 @@ TEST(FormatterEndToEndTest, AlignFormatterTestCases) {
   RunFormatterTestCases40(kAlignFormatterTestCases);
 }
 
+TEST(FormatterEndToEndTest, IfElseStatementAlignment) {
+  static constexpr FormatterTestCase kTestCases[] = {
+      // only statement of a block
+      {"module m;\n"
+       "always_ff @(posedge clk) begin\n"
+       "if (!rst_ni) q <= 0;\n"
+       "else q <= d;\n"
+       "end\n"
+       "endmodule\n",
+       "module m;\n"
+       "  always_ff @(posedge clk) begin\n"
+       "    if (!rst_ni) q <= 0;\n"
+       "    else         q <= d;\n"
+       "  end\n"
+       "endmodule\n"},
+      // else-if chain among other statements
+      {"module m;\n"
+       "always_comb begin\n"
+       "x = 0;\n"
+       "if (a) y = 1;\n"
+       "else if (bbbb) y = 2;\n"
+       "else y = 3;\n"
+       "end\n"
+       "endmodule\n",
+       "module m;\n"
+       "  always_comb begin\n"
+       "    x = 0;\n"
+       "    if (a)         y = 1;\n"
+       "    else if (bbbb) y = 2;\n"
+       "    else           y = 3;\n"
+       "  end\n"
+       "endmodule\n"},
+      // chain ending in else-if
+      {"module m;\n"
+       "always_comb begin\n"
+       "if (a) y = 1;\n"
+       "else if (bbbb) y = 2;\n"
+       "else if (c) y = 3;\n"
+       "end\n"
+       "endmodule\n",
+       "module m;\n"
+       "  always_comb begin\n"
+       "    if (a)         y = 1;\n"
+       "    else if (bbbb) y = 2;\n"
+       "    else if (c)    y = 3;\n"
+       "  end\n"
+       "endmodule\n"},
+      // trailing comments
+      {"module m;\n"
+       "always_comb begin\n"
+       "if (a) y = 1;  // one\n"
+       "else y = 2;  // two\n"
+       "end\n"
+       "endmodule\n",
+       "module m;\n"
+       "  always_comb begin\n"
+       "    if (a) y = 1;  // one\n"
+       "    else   y = 2;  // two\n"
+       "  end\n"
+       "endmodule\n"},
+      // not aligned: a branch with a begin-end block
+      {"module m;\n"
+       "always_comb begin\n"
+       "if (a) y = 1;\n"
+       "else begin\n"
+       "y = 2;\n"
+       "end\n"
+       "end\n"
+       "endmodule\n",
+       "module m;\n"
+       "  always_comb begin\n"
+       "    if (a) y = 1;\n"
+       "    else begin\n"
+       "      y = 2;\n"
+       "    end\n"
+       "  end\n"
+       "endmodule\n"},
+      // not aligned: a comment between branches
+      {"module m;\n"
+       "always_comb begin\n"
+       "if (a) y = 1;\n"
+       "// c\n"
+       "else y = 2;\n"
+       "end\n"
+       "endmodule\n",
+       "module m;\n"
+       "  always_comb begin\n"
+       "    if (a) y = 1;\n"
+       "    // c\n"
+       "    else\n"
+       "      y = 2;\n"
+       "  end\n"
+       "endmodule\n"},
+      // not aligned: a branch does not fit on one line
+      {"module m;\n"
+       "always_comb begin\n"
+       "if (a_longer_condition_name) yyyyyy = 1;\n"
+       "else yyyyyy = 2;\n"
+       "end\n"
+       "endmodule\n",
+       "module m;\n"
+       "  always_comb begin\n"
+       "    if (a_longer_condition_name)\n"
+       "      yyyyyy = 1;\n"
+       "    else yyyyyy = 2;\n"
+       "  end\n"
+       "endmodule\n"},
+  };
+  FormatStyle style;
+  style.column_limit = 40;
+  style.indentation_spaces = 2;
+  style.wrap_spaces = 4;
+  style.if_else_statement_alignment = AlignmentPolicy::kAlign;
+  RunFormatterTestCases(style, kTestCases);
+}
+
 TEST(FormatterEndToEndTest, AlignmentGroupBoundaryNone) {
   // Default behavior: separator comments and blank lines do NOT break groups.
   static constexpr FormatterTestCase kTestCases[] = {

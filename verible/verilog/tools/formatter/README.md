@@ -63,6 +63,9 @@ To pipe from stdin, use '-' as <file>.
       that do not fit on one line are formatted with one port per line,
       aligned to the open parenthesis if possible. If false (default), as
       many ports as fit are packed onto each line.); default: false;
+    --if_else_statement_alignment (Align the statements of if/else-if/else
+      chains in which every branch is a single statement on one line:
+      {align,flush-left,preserve,infer}); default: flush-left;
     --module_net_variable_alignment (Format net/variable declarations
       in module, generate, interface, and package bodies:
       {align,flush-left,preserve,infer}); default: infer;

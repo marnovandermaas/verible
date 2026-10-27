@@ -127,6 +127,13 @@ struct FormatStyle : public verible::BasicFormatStyle {
   // Internal tests assume these are forced to kAlign.
   AlignmentPolicy distribution_items_alignment = AlignmentPolicy::kAlign;
 
+  // Control how the statements of if/else-if/else chains are formatted, when
+  // every branch is a single statement on one line:
+  //   if (!rst_ni) q <= '0;
+  //   else         q <= d;
+  // Defaults to kFlushLeft, the behavior before this option existed.
+  AlignmentPolicy if_else_statement_alignment = AlignmentPolicy::kFlushLeft;
+
   bool port_declarations_right_align_packed_dimensions = false;
   bool port_declarations_right_align_unpacked_dimensions = false;
 
@@ -216,6 +223,7 @@ struct FormatStyle : public verible::BasicFormatStyle {
     assignment_statement_alignment = policy;
     enum_assignment_statement_alignment = policy;
     distribution_items_alignment = policy;
+    if_else_statement_alignment = policy;
   }
 };
 

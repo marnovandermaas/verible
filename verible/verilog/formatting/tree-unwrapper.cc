@@ -990,8 +990,17 @@ void TreeUnwrapper::SetIndentationsAndCreatePartitions(
                          : ShouldIndentRelativeToDirectParent(Context())
                              ? style_.indentation_spaces
                              : 0;
+      // The branches of if/else chains are aligned as rows of a table, see
+      // AlignIfElseBranches(). Branches are on separate lines either way.
+      const bool align_branches =
+          tag == NodeEnum::kConditionalStatement &&
+          style_.if_else_statement_alignment !=
+              verible::AlignmentPolicy::kFlushLeft &&
+          GetAnyConditionalElseClause(node) != nullptr;
       VisitIndentedSection(node, indent,
-                           PartitionPolicyEnum::kFitOnLineElseExpand);
+                           align_branches
+                               ? PartitionPolicyEnum::kTabularAlignment
+                               : PartitionPolicyEnum::kFitOnLineElseExpand);
       break;
     }
 

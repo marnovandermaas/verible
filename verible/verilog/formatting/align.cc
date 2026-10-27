@@ -728,6 +728,7 @@ enum class AlignableSyntaxSubtype {
   kBlockingAssignment,
   kNonBlockingAssignment,
   kDistItem,  // Distribution items.
+  kIfElseBranches,  // Branches of if/else-if/else chains.
 };
 
 static AlignedPartitionClassification AlignClassify(
@@ -1521,6 +1522,27 @@ static void non_tree_column_scanner(
   }
 }
 
+// Columns of an if/else-if/else branch row, for alignment like:
+//   if (!rst_ni)     q <= '0;
+//   else if (load_i) q <= d_i;
+//   else             q <= q + 1;
+// All branch rows are partitioned as [header] [statement], whereas their syntax
+// tree origins differ, e.g. "else if" rows have a leading "else" outside of
+// their origin. So the columns are taken from the partitions.
+static verible::ColumnPositionTree ScanIfElseBranchColumns(
+    const TokenPartitionTree &row) {
+  verible::ColumnPositionTree columns({{}, verible::TokenInfo::EOFToken(), {}});
+  const auto &parts = row.Children();
+  if (parts.size() != 2) return columns;
+  for (int i = 0; i < 2; ++i) {
+    const auto tokens = parts[i].Value().TokensRange();
+    if (tokens.empty()) return columns;
+    columns.Children().emplace_back(verible::ColumnPositionEntry{
+        SyntaxTreePath{i}, *tokens.front().token, FlushLeft});
+  }
+  return columns;
+}
+
 // Global registry of all known alignment handlers for Verilog.
 // This organization lets the same handlers be re-used in multiple
 // syntactic contexts, e.g. data declarations can be module items and
@@ -1590,6 +1612,13 @@ static const AlignmentHandlerMapType &AlignmentHandlerLibrary() {
        {UnstyledAlignmentCellScannerGenerator<DistItemColumnSchemaScanner>(),
         function_from_pointer_to_member(
             &FormatStyle::distribution_items_alignment)}},
+      {AlignableSyntaxSubtype::kIfElseBranches,
+       {[](const FormatStyle &) {
+          return verible::AlignmentCellScannerFunction(
+              &ScanIfElseBranchColumns);
+        },
+        function_from_pointer_to_member(
+            &FormatStyle::if_else_statement_alignment)}},
   };
   return *handler_map;
 }
@@ -1759,6 +1788,39 @@ static std::vector<AlignablePartitionGroup> AlignDistItems(
       &IgnoreCommentsAndPreprocessingDirectives, full_range, vstyle);
 }
 
+// Returns true for if/else branches that are not a single statement on one
+// line, e.g. with a begin-end block or a comment forcing a line break, or
+// that are not partitioned as [header] [statement].
+static bool IsMultilineIfElseBranch(const TokenPartitionTree &partition) {
+  // Like case items, the same tokens and comments make a row multi-line.
+  return partition.Children().size() != 2 ||
+         IgnoreMultilineCaseStatements(partition);
+}
+
+static std::vector<AlignablePartitionGroup> AlignIfElseBranches(
+    const TokenPartitionRange &full_range, const FormatStyle &vstyle) {
+  // Align either all branches of a chain or none of them: aligning some
+  // branches around a begin-end block would look arbitrary.
+  if (std::any_of(full_range.begin(), full_range.end(),
+                  &IsMultilineIfElseBranch)) {
+    return {};
+  }
+  return ExtractAlignablePartitionGroups(
+      PartitionBetweenBlankLines(AlignableSyntaxSubtype::kIfElseBranches),
+      &IsMultilineIfElseBranch, full_range, vstyle);
+}
+
+// Returns true if the partition's rows are the branches of an if/else chain.
+// This also covers chains that are the only statement of a block, whose
+// partition is merged into the block's and keeps the block's origin.
+static bool PartitionIsIfElseChain(const TokenPartitionTree &partition) {
+  const auto &rows = partition.Children();
+  if (rows.empty()) return false;
+  const Symbol *first_row_origin = rows.front().Value().Origin();
+  return first_row_origin != nullptr &&
+         first_row_origin->Tag() == verible::NodeTag(NodeEnum::kIfClause);
+}
+
 void TabularAlignTokenPartitions(const FormatStyle &style,
                                  std::string_view full_text,
                                  const ByteOffsetSet &disabled_byte_ranges,
@@ -1799,10 +1861,15 @@ void TabularAlignTokenPartitions(const FormatStyle &style,
           {NodeEnum::kFunctionItemList, &AlignStatements},
           {NodeEnum::kDistributionItemList, &AlignDistItems},
       };
-  const auto handler_iter = kAlignHandlers->find(NodeEnum(node->Tag().tag));
-  if (handler_iter == kAlignHandlers->end()) return;
+  AlignSyntaxGroupsFunction alignment_partitioner;
+  if (PartitionIsIfElseChain(partition)) {
+    alignment_partitioner = &AlignIfElseBranches;
+  } else {
+    const auto handler_iter = kAlignHandlers->find(NodeEnum(node->Tag().tag));
+    if (handler_iter == kAlignHandlers->end()) return;
+    alignment_partitioner = handler_iter->second;
+  }
 
-  const AlignSyntaxGroupsFunction &alignment_partitioner = handler_iter->second;
   const ExtractAlignmentGroupsFunction extract_alignment_groups =
       std::bind(alignment_partitioner, std::placeholders::_1, style);
 
