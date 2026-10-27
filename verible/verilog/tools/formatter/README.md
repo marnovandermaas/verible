@@ -59,6 +59,10 @@ To pipe from stdin, use '-' as <file>.
       default: infer;
     --formal_parameters_indentation (Indent formal parameters: {indent,wrap});
       default: wrap;
+    --function_ports_one_per_line (If true, function and task port lists
+      that do not fit on one line are formatted with one port per line,
+      aligned to the open parenthesis if possible. If false (default), as
+      many ports as fit are packed onto each line.); default: false;
     --module_net_variable_alignment (Format net/variable declarations
       in module, generate, interface, and package bodies:
       {align,flush-left,preserve,infer}); default: infer;

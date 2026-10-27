@@ -1302,8 +1302,21 @@ void TreeUnwrapper::SetIndentationsAndCreatePartitions(
                              PartitionPolicyEnum::kTabularAlignment);
       } else {
         const int indent = suppress_indentation ? 0 : style_.wrap_spaces;
+        // kAlwaysExpand on the port list makes the enclosing
+        // kAppendFittingSubPartitions header put one port per line when the
+        // header does not fit on one line.
+        const bool one_per_line =
+            style_.function_ports_one_per_line &&
+            (Context().DirectParentsAre(
+                 {NodeEnum::kParenGroup, NodeEnum::kFunctionHeader}) ||
+             Context().DirectParentsAre(
+                 {NodeEnum::kParenGroup, NodeEnum::kTaskHeader}) ||
+             Context().DirectParentsAre({NodeEnum::kParenGroup,
+                                         NodeEnum::kClassConstructorPrototype}));
         VisitIndentedSection(node, indent,
-                             PartitionPolicyEnum::kFitOnLineElseExpand);
+                             one_per_line
+                                 ? PartitionPolicyEnum::kAlwaysExpand
+                                 : PartitionPolicyEnum::kFitOnLineElseExpand);
       }
       break;
     }

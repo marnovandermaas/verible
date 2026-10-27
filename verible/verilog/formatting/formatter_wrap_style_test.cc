@@ -3228,6 +3228,78 @@ TEST(FormatterEndToEndTest, NamedConnectionParenSpaceTestCases) {
   }
 }
 
+static constexpr FormatterTestCase kFunctionPortsOnePerLine60TestCases[] = {
+    // fits on one line
+    {"class c;\n"
+     "extern task t(int a, string b);\n"
+     "endclass\n",
+     "class c;\n"
+     "  extern task t(int a, string b);\n"
+     "endclass\n"},
+    // one port per line, aligned to the open parenthesis
+    {"class c;\n"
+     "extern function new(string name = \"\", "
+     "uvm_component parent = null);\n"
+     "endclass\n",
+     "class c;\n"
+     "  extern function new(string name = \"\",\n"
+     "                      uvm_component parent = null);\n"
+     "endclass\n"},
+    {"function automatic logic [31:0] calc(input logic [31:0] a, "
+     "input logic [31:0] b);\n"
+     "  return a + b;\n"
+     "endfunction\n",
+     "function automatic logic [31:0] calc(input logic [31:0] a,\n"
+     "                                     input logic [31:0] b);\n"
+     "  return a + b;\n"
+     "endfunction\n"},
+    // comments stay with their port
+    {"class c;\n"
+     "extern function void with_comment(int a,  // first\n"
+     "int b);\n"
+     "endclass\n",
+     "class c;\n"
+     "  extern function void with_comment(int a,  // first\n"
+     "                                    int b);\n"
+     "endclass\n"},
+    // wrapped one port per line when aligning to '(' does not fit
+    {"class c;\n"
+     "extern function void a_really_long_function_name(input string symbol, "
+     "inout bit [7:0] data[]);\n"
+     "endclass\n",
+     "class c;\n"
+     "  extern function void a_really_long_function_name(\n"
+     "      input string symbol,\n"
+     "      inout bit [7:0] data[]);\n"
+     "endclass\n"},
+    {"task automatic do_thing(input logic [31:0] address_of_the_thing, "
+     "input logic [31:0] data_of_the_thing);\n"
+     "endtask\n",
+     "task automatic do_thing(\n"
+     "    input logic [31:0] address_of_the_thing,\n"
+     "    input logic [31:0] data_of_the_thing);\n"
+     "endtask\n"},
+};
+
+TEST(FormatterEndToEndTest, FunctionPortsOnePerLine60TestCases) {
+  // Use a fixed style.
+  FormatStyle style;
+  style.column_limit = 60;
+  style.indentation_spaces = 2;
+  style.wrap_spaces = 4;
+  style.function_ports_one_per_line = true;
+
+  for (const auto &test_case : kFunctionPortsOnePerLine60TestCases) {
+    VLOG(1) << "code-to-format:\n" << test_case.input << "<EOF>";
+    std::ostringstream stream;
+    const auto status =
+        FormatVerilog(test_case.input, "<filename>", style, stream);
+    // Require these test cases to be valid.
+    EXPECT_OK(status) << status.message();
+    EXPECT_EQ(stream.str(), test_case.expected) << "code:\n" << test_case.input;
+  }
+}
+
 static constexpr FormatterTestCase kFunctionCallsWithComments[] = {
     {// no comments
      "module foo;\n"

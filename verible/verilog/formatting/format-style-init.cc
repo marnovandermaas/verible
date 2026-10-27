@@ -153,6 +153,12 @@ ABSL_FLAG(bool, named_connection_paren_space, false,
           "\".clk_i (clk)\" and \"#(.Width (8))\".  If false (default), no "
           "space is inserted, e.g. \".clk_i(clk)\".");
 
+ABSL_FLAG(bool, function_ports_one_per_line, false,
+          "If true, function and task port lists that do not fit on one line "
+          "are formatted with one port per line, aligned to the open "
+          "parenthesis if possible.  If false (default), as many ports as fit "
+          "are packed onto each line.");
+
 ABSL_FLAG(bool, wrap_end_else_clauses, false,
           "Split end and else keywords into separate lines");
 
@@ -212,6 +218,7 @@ void InitializeFromFlags(FormatStyle *style) {
   STYLE_FROM_FLAG(compact_indexing_and_selections);
   STYLE_FROM_FLAG(class_parameter_space);
   STYLE_FROM_FLAG(named_connection_paren_space);
+  STYLE_FROM_FLAG(function_ports_one_per_line);
   STYLE_FROM_FLAG(wrap_end_else_clauses);
   STYLE_FROM_FLAG(alignment_group_boundary);
 
