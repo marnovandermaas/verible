@@ -110,10 +110,20 @@ struct FormatStyle : public verible::BasicFormatStyle {
 
   // Control how parameter/localparam declarations are formatted.
   // Applies in module, generate, interface, and package bodies.
-  // Class body parameter declarations are not affected.
+  // Class body parameter declarations are not affected, unless
+  // align_class_parameter_declarations is set.
   // For formal parameters in #(...) headers, see formal_parameters_alignment.
   // Internal tests assume these are forced to kAlign.
   AlignmentPolicy parameter_declaration_alignment = AlignmentPolicy::kAlign;
+
+  // When aligning parameter declarations, also align the contents of their
+  // packed and unpacked dimensions, e.g. "[ 3:0]" under "[10:0]". If false,
+  // dimensions are kept as written and only what follows them is aligned.
+  bool parameter_declarations_align_dimensions = true;
+
+  // Also align parameter/localparam declarations in class bodies, following
+  // parameter_declaration_alignment.
+  bool align_class_parameter_declarations = false;
 
   // Control how class member variables are formatted.
   // Internal tests assume these are forced to kAlign.
@@ -178,6 +188,13 @@ struct FormatStyle : public verible::BasicFormatStyle {
   // Minimum number of spaces before a '//' comment that follows code on the
   // same line, e.g. "x = 1;  // comment". Values below 1 are treated as 1.
   int eol_comment_spacing = 2;
+
+  // In aligned groups (e.g. parameter declarations, port connections), align
+  // trailing comments only with the comments on directly adjacent rows, one
+  // eol_comment_spacing after the longest of those rows. A trailing comment
+  // without such neighbours directly follows its code. If false, trailing
+  // comments are aligned across the whole group.
+  bool align_trailing_comments_by_run = false;
 
   // Split with a \n end and else clauses
   bool wrap_end_else_clauses = false;

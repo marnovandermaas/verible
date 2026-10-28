@@ -646,7 +646,9 @@ static AlignedFormattingColumnSchema ComputeColumnWidths(
         VectorTreePreOrderTraversal(column_properties).begin();
 
     for (const auto &node : VectorTreePreOrderTraversal(row)) {
-      if (column_prop_iter->Value().contains_delimiter && align_to_last_row) {
+      if ((column_prop_iter->Value().contains_delimiter && align_to_last_row) ||
+          column_prop_iter->Value().aligned_by_run) {
+        // Columns aligned by run are positioned by AlignCellsByRun().
         column_iter->Value().width = 0;
         column_iter->Value().left_border = 0;
       } else {
@@ -866,6 +868,103 @@ struct AlignablePartitionGroup::GroupAlignmentData {
       const TokenPartitionRange &partitions) const;
 };
 
+// Positions the cells of top-level columns with the aligned_by_run property,
+// see AlignmentColumnProperties. Updates the spacings in align_actions_2D,
+// which were computed with these columns having zero width. Returns false if
+// a row would exceed the column limit even without aligning these cells.
+static bool AlignCellsByRun(
+    const std::vector<TokenPartitionIterator> &rows,
+    const AlignmentMatrix &matrix,
+    const VectorTree<AlignmentColumnProperties> &column_properties,
+    int column_limit,
+    std::vector<std::vector<DeferredTokenAlignment>> *align_actions_2D) {
+  std::vector<size_t> by_run_columns;
+  for (size_t i = 0; i < column_properties.Children().size(); ++i) {
+    if (column_properties.Children()[i].Value().aligned_by_run) {
+      by_run_columns.push_back(i);
+    }
+  }
+  if (by_run_columns.empty()) return true;
+
+  // Per row: the action of the by-run cell (or nullptr), the width of the row
+  // before that cell, and the cell's minimum spacing and width.
+  struct RowCell {
+    DeferredTokenAlignment *action = nullptr;
+    int code_width = 0;
+    int min_spacing = 0;
+    int cell_width = 0;
+    int indentation = 0;
+  };
+  std::vector<RowCell> cells(matrix.size());
+  for (size_t r = 0; r < matrix.size(); ++r) {
+    const AlignmentCell *by_run_cell = nullptr;
+    for (const size_t column : by_run_columns) {
+      const AlignmentCell &cell = matrix[r].Children()[column].Value();
+      if (!cell.tokens.empty()) by_run_cell = &cell;
+    }
+    if (by_run_cell == nullptr) continue;
+    auto &actions = (*align_actions_2D)[r];
+    const auto cell_begin = by_run_cell->tokens.begin();
+    const auto action_iter = std::find_if(
+        actions.begin(), actions.end(),
+        [&](const DeferredTokenAlignment &a) { return a.ftoken == cell_begin; });
+    if (action_iter == actions.end()) continue;
+
+    // Width of the aligned row before the cell.
+    const FormatTokenRange row_tokens = rows[r]->Value().TokensRange();
+    int width = 0;
+    for (auto token = row_tokens.begin(); token != cell_begin; ++token) {
+      if (token != row_tokens.begin()) {
+        const auto action = std::find_if(
+            actions.begin(), actions.end(),
+            [&](const DeferredTokenAlignment &a) { return a.ftoken == token; });
+        width += action != actions.end() ? action->new_before_spacing
+                                         : token->LeadingSpacesLength();
+      }
+      width += token->token->text().length();
+    }
+    cells[r] = RowCell{&*action_iter, width, cell_begin->before.spaces_required,
+                       by_run_cell->compact_width,
+                       rows[r]->Value().IndentationSpaces()};
+  }
+
+  // Align each run of consecutive rows with a by-run cell.
+  for (size_t begin = 0; begin < cells.size();) {
+    if (cells[begin].action == nullptr) {
+      ++begin;
+      continue;
+    }
+    size_t end = begin;
+    int position = 0;
+    while (end < cells.size() && cells[end].action != nullptr) {
+      position = std::max(position, cells[end].code_width + cells[end].min_spacing);
+      ++end;
+    }
+    bool run_fits = true;
+    for (size_t r = begin; r < end; ++r) {
+      if (cells[r].indentation + position + cells[r].cell_width > column_limit) {
+        run_fits = false;
+      }
+    }
+    for (size_t r = begin; r < end; ++r) {
+      RowCell &cell = cells[r];
+      if (run_fits) {
+        cell.action->new_before_spacing = position - cell.code_width;
+      } else {
+        // Fall back to not aligning the cells of this run.
+        cell.action->new_before_spacing = cell.min_spacing;
+        if (cell.indentation + cell.code_width + cell.min_spacing +
+                cell.cell_width >
+            column_limit) {
+          return false;
+        }
+      }
+    }
+    begin = end;
+  }
+  return true;
+}
+
 AlignablePartitionGroup::GroupAlignmentData
 AlignablePartitionGroup::CalculateAlignmentSpacings(
     const std::vector<TokenPartitionIterator> &rows,
@@ -984,6 +1083,11 @@ AlignablePartitionGroup::CalculateAlignmentSpacings(
   for (const auto &row : result.matrix) {
     result.align_actions_2D.push_back(
         ComputeAlignedRowSpacings(column_configs, column_properties, row));
+  }
+  if (!AlignCellsByRun(rows, result.matrix, column_properties, column_limit,
+                       &result.align_actions_2D)) {
+    VLOG(2) << "A row exceeds the column limit, so not aligning this group.";
+    result.align_actions_2D.clear();
   }
   return result;
 }

@@ -50,6 +50,13 @@ struct AlignmentColumnProperties {
 
   bool contains_delimiter = false;
 
+  // If true, cells of this column are aligned only with the cells of directly
+  // adjacent rows that also have one, one minimum spacing after the longest of
+  // those rows, instead of with the whole group. A cell without such
+  // neighbours directly follows the rest of its row. The column does not widen
+  // the group. Intended for a last column of trailing comments.
+  bool aligned_by_run = false;
+
   AlignmentColumnProperties() = default;
 
   explicit constexpr AlignmentColumnProperties(bool flush_left)

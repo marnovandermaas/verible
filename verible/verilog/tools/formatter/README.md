@@ -35,6 +35,14 @@ To pipe from stdin, use '-' as <file>.
       operator.); default: 4;
 
   Flags from verilog/formatting/format_style_init.cc:
+    --align_class_parameter_declarations (If true, also align
+      parameter/localparam declarations in class bodies, following
+      --parameter_declaration_alignment.); default: false;
+    --align_trailing_comments_by_run (If true, in aligned groups align
+      trailing comments only with the comments on directly adjacent rows; a
+      trailing comment without such neighbours directly follows its code. If
+      false (default), trailing comments are aligned across the whole
+      group.); default: false;
     --assignment_statement_alignment (Format various assignments in
       module, generate, interface, and package bodies:
       {align,flush-left,preserve,infer}); default: infer;
@@ -94,7 +102,12 @@ To pipe from stdin, use '-' as <file>.
     --parameter_declaration_alignment (Format parameter/localparam declarations
       in module, generate, interface, and package bodies:
       {align,flush-left,preserve,infer}); default: infer;
-      NOTE: class body parameter declarations are NOT affected.
+      NOTE: class body parameter declarations are NOT affected, unless
+      --align_class_parameter_declarations is set.
+    --parameter_declarations_align_dimensions (If true, aligned parameter
+      declarations also align the contents of their dimensions, e.g. "[ 3:0]"
+      under "[10:0]". If false, dimensions are kept as written.);
+      default: true;
     --port_declarations_alignment (Format port declarations:
       {align,flush-left,preserve,infer}); default: infer;
     --port_declarations_indentation (Indent port declarations: {indent,wrap});

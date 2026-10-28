@@ -338,6 +338,26 @@ UnstyledAlignmentCellScannerGenerator() {
   };
 }
 
+// Wraps a scanner of non-tree tokens to mark its trailing comment columns as
+// aligned by run, see FormatStyle::align_trailing_comments_by_run.
+static verible::NonTreeTokensScannerFunction TrailingCommentsAlignedByRun(
+    const verible::NonTreeTokensScannerFunction &non_tree_column_scanner) {
+  return [non_tree_column_scanner](
+             verible::FormatTokenRange leading_tokens,
+             verible::FormatTokenRange trailing_tokens,
+             verible::ColumnPositionTree *column_entries) {
+    const size_t first_new = column_entries->Children().size();
+    non_tree_column_scanner(leading_tokens, trailing_tokens, column_entries);
+    for (size_t i = first_new; i < column_entries->Children().size(); ++i) {
+      auto &column = column_entries->Children()[i].Value();
+      const int token = column.starting_token.token_enum();
+      if (token == TK_EOL_COMMENT || token == TK_COMMENT_BLOCK) {
+        column.properties.aligned_by_run = true;
+      }
+    }
+  };
+}
+
 template <class ScannerType>
 std::function<verible::AlignmentCellScannerFunction(
     const FormatStyle
@@ -345,7 +365,10 @@ std::function<verible::AlignmentCellScannerFunction(
                                                              &non_tree_column_scanner) {
   return [non_tree_column_scanner](const FormatStyle &vstyle) {
     return AlignmentCellScannerGenerator<ScannerType>(
-        [vstyle] { return ScannerType(vstyle); }, non_tree_column_scanner);
+        [vstyle] { return ScannerType(vstyle); },
+        vstyle.align_trailing_comments_by_run
+            ? TrailingCommentsAlignedByRun(non_tree_column_scanner)
+            : non_tree_column_scanner);
   };
 }
 
@@ -782,11 +805,13 @@ static std::vector<TaggedTokenPartitionRange> GetConsecutiveModuleItemGroups(
 }
 
 static std::vector<TaggedTokenPartitionRange> GetConsecutiveClassItemGroups(
-    const TokenPartitionRange &partitions, AlignmentGroupBoundary boundary) {
+    const TokenPartitionRange &partitions, AlignmentGroupBoundary boundary,
+    bool align_parameter_declarations) {
   VLOG(2) << __FUNCTION__;
   return GetPartitionAlignmentSubranges(
       partitions,  //
-      [boundary](const TokenPartitionTree &partition)
+      [boundary, align_parameter_declarations](
+          const TokenPartitionTree &partition)
           -> AlignedPartitionClassification {
         const Symbol *origin = partition.Value().Origin();
         if (origin == nullptr) {
@@ -801,6 +826,13 @@ static std::vector<TaggedTokenPartitionRange> GetConsecutiveClassItemGroups(
           return {AlignmentGroupAction::kIgnore};
         }
         const SyntaxTreeNode &node = verible::SymbolCastToNode(*origin);
+        // Align parameter/localparam declarations, like in module bodies.
+        if (align_parameter_declarations &&
+            node.MatchesTag(NodeEnum::kParamDeclaration)) {
+          return AlignClassify(
+              AlignmentGroupAction::kMatch,
+              AlignableSyntaxSubtype::kBodyParameterDeclaration);
+        }
         // Align class member variables.
         return AlignClassify(IsAlignableDeclaration(node)
                                  ? AlignmentGroupAction::kMatch
@@ -1183,7 +1215,8 @@ class ParameterDeclarationColumnSchemaScanner
 
       // Align packed and unpacked dimensions
       case '[': {
-        if (verilog::analysis::ContextIsInsideDeclarationDimensions(
+        if (style_.parameter_declarations_align_dimensions &&
+            verilog::analysis::ContextIsInsideDeclarationDimensions(
                 Context()) &&
             !Context().IsInside(NodeEnum::kActualParameterList)) {
           // FlushLeft vs. Right doesn't matter, this is a single character.
@@ -1193,7 +1226,8 @@ class ParameterDeclarationColumnSchemaScanner
         break;
       }
       case ']': {
-        if (verilog::analysis::ContextIsInsideDeclarationDimensions(
+        if (style_.parameter_declarations_align_dimensions &&
+            verilog::analysis::ContextIsInsideDeclarationDimensions(
                 Context()) &&
             !Context().IsInside(NodeEnum::kActualParameterList)) {
           // FlushLeft vs. Right doesn't matter, this is a single character.
@@ -1738,8 +1772,9 @@ static std::vector<AlignablePartitionGroup> AlignClassItems(
     const TokenPartitionRange &full_range, const FormatStyle &vstyle) {
   // TODO(fangism): align other class items besides member variables.
   auto group_extractor = [&vstyle](const TokenPartitionRange &range) {
-    return GetConsecutiveClassItemGroups(range,
-                                         vstyle.alignment_group_boundary);
+    return GetConsecutiveClassItemGroups(
+        range, vstyle.alignment_group_boundary,
+        vstyle.align_class_parameter_declarations);
   };
   return ExtractAlignablePartitionGroupsWithBoundary(
       group_extractor, &IgnoreCommentsAndPreprocessingDirectives, full_range,

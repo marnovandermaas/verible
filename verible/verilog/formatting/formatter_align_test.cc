@@ -3323,6 +3323,95 @@ TEST(FormatterEndToEndTest, AlignFormatterTestCases) {
   RunFormatterTestCases40(kAlignFormatterTestCases);
 }
 
+TEST(FormatterEndToEndTest, TrailingCommentsAlignedByRun) {
+  static constexpr FormatterTestCase kTestCases[] = {
+      // comments align within runs of adjacent rows only
+      {"package p;\n"
+       "localparam int A = 1; // a\n"
+       "localparam int BBBB = 2; // b\n"
+       "localparam int CC = 33333;\n"
+       "localparam int D = 4; // d\n"
+       "endpackage\n",
+       "package p;\n"
+       "  localparam int A    = 1;  // a\n"
+       "  localparam int BBBB = 2;  // b\n"
+       "  localparam int CC   = 33333;\n"
+       "  localparam int D    = 4;  // d\n"
+       "endpackage\n"},
+      // the group is aligned although its comment column would not fit
+      {"package p;\n"
+       "localparam int A = 1; // a comment of 24 chars\n"
+       "localparam int BBBB = 2222222222;\n"
+       "endpackage\n",
+       "package p;\n"
+       "  localparam int A    = 1;  // a comment of 24 chars\n"
+       "  localparam int BBBB = 2222222222;\n"
+       "endpackage\n"},
+      // port connections
+      {"module m;\n"
+       "foo u_foo(.a(a), // a\n"
+       ".bbbb(b),\n"
+       ".cc(c) // c\n"
+       ");\n"
+       "endmodule\n",
+       "module m;\n"
+       "  foo u_foo (\n"
+       "      .a   (a),  // a\n"
+       "      .bbbb(b),\n"
+       "      .cc  (c)  // c\n"
+       "  );\n"
+       "endmodule\n"},
+  };
+  FormatStyle style;
+  style.column_limit = 60;
+  style.indentation_spaces = 2;
+  style.wrap_spaces = 4;
+  style.align_trailing_comments_by_run = true;
+  RunFormatterTestCases(style, kTestCases);
+}
+
+TEST(FormatterEndToEndTest, ParameterDeclarationsKeepDimensions) {
+  static constexpr FormatterTestCase kTestCases[] = {
+      {"package p;\n"
+       "localparam logic [10:0] JEDEC_ID = 1;\n"
+       "localparam logic [3:0] VERSION = 4;\n"
+       "localparam int A[2] = {1, 2};\n"
+       "endpackage\n",
+       "package p;\n"
+       "  localparam logic [10:0] JEDEC_ID = 1;\n"
+       "  localparam logic [3:0]  VERSION  = 4;\n"
+       "  localparam int          A[2]     = {1, 2};\n"
+       "endpackage\n"},
+  };
+  FormatStyle style;
+  style.column_limit = 60;
+  style.indentation_spaces = 2;
+  style.wrap_spaces = 4;
+  style.parameter_declarations_align_dimensions = false;
+  RunFormatterTestCases(style, kTestCases);
+}
+
+TEST(FormatterEndToEndTest, ClassParameterDeclarationsAligned) {
+  static constexpr FormatterTestCase kTestCases[] = {
+      {"class c;\n"
+       "localparam int A = 1;\n"
+       "localparam int BBBB = 2;\n"
+       "int x;\n"
+       "endclass\n",
+       "class c;\n"
+       "  localparam int A    = 1;\n"
+       "  localparam int BBBB = 2;\n"
+       "  int x;\n"
+       "endclass\n"},
+  };
+  FormatStyle style;
+  style.column_limit = 60;
+  style.indentation_spaces = 2;
+  style.wrap_spaces = 4;
+  style.align_class_parameter_declarations = true;
+  RunFormatterTestCases(style, kTestCases);
+}
+
 TEST(FormatterEndToEndTest, IfElseStatementAlignment) {
   static constexpr FormatterTestCase kTestCases[] = {
       // only statement of a block

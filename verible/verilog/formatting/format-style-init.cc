@@ -117,8 +117,16 @@ ABSL_FLAG(AlignmentPolicy, parameter_declaration_alignment,
           AlignmentPolicy::kInferUserIntent,
           "Format parameter/localparam declarations in module, generate, "
           "interface, and package bodies "
-          "(class body parameter declarations are NOT affected): "
+          "(class body parameter declarations are NOT affected, unless "
+          "--align_class_parameter_declarations): "
           "{align,flush-left,preserve,infer}");
+ABSL_FLAG(bool, align_class_parameter_declarations, false,
+          "If true, also align parameter/localparam declarations in class "
+          "bodies, following --parameter_declaration_alignment.");
+ABSL_FLAG(bool, parameter_declarations_align_dimensions, true,
+          "If true (default), aligned parameter declarations also align the "
+          "contents of their dimensions, e.g. \"[ 3:0]\" under \"[10:0]\". "
+          "If false, dimensions are kept as written.");
 ABSL_FLAG(AlignmentPolicy, class_member_variable_alignment,
           AlignmentPolicy::kInferUserIntent,
           "Format class member variables: {align,flush-left,preserve,infer}");
@@ -163,6 +171,12 @@ ABSL_FLAG(bool, named_parameter_paren_padding, false,
           "spaces, e.g. \".Width ( 8 )\", and align the closing parentheses "
           "when named parameters are aligned.  If false (default), no "
           "padding is inserted, e.g. \".Width(8)\".");
+
+ABSL_FLAG(bool, align_trailing_comments_by_run, false,
+          "If true, in aligned groups align trailing comments only with the "
+          "comments on directly adjacent rows; a trailing comment without "
+          "such neighbours directly follows its code.  If false (default), "
+          "trailing comments are aligned across the whole group.");
 
 ABSL_FLAG(int, eol_comment_spacing, 2,
           "Minimum number of spaces before a '//' comment that follows code "
@@ -229,6 +243,8 @@ void InitializeFromFlags(FormatStyle *style) {
   STYLE_FROM_FLAG(formal_parameters_indentation);
   STYLE_FROM_FLAG(formal_parameters_alignment);
   STYLE_FROM_FLAG(parameter_declaration_alignment);
+  STYLE_FROM_FLAG(parameter_declarations_align_dimensions);
+  STYLE_FROM_FLAG(align_class_parameter_declarations);
   STYLE_FROM_FLAG(class_member_variable_alignment);
   STYLE_FROM_FLAG(case_items_alignment);
   STYLE_FROM_FLAG(distribution_items_alignment);
@@ -244,6 +260,7 @@ void InitializeFromFlags(FormatStyle *style) {
   STYLE_FROM_FLAG(function_ports_one_per_line);
   STYLE_FROM_FLAG(function_ports_keep_one_per_line);
   STYLE_FROM_FLAG(eol_comment_spacing);
+  STYLE_FROM_FLAG(align_trailing_comments_by_run);
   STYLE_FROM_FLAG(wrap_end_else_clauses);
   STYLE_FROM_FLAG(alignment_group_boundary);
 
