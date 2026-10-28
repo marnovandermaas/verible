@@ -731,7 +731,23 @@ void TreeUnwrapper::SetIndentationsAndCreatePartitions(
     // Indent only when applying kAppendFittingSubPartitions in parents
     case NodeEnum::kArgumentList:
     case NodeEnum::kIdentifierList: {
-      if (Context().DirectParentsAre({NodeEnum::kParenGroup,
+      if (tag == NodeEnum::kArgumentList &&
+          style_.named_constructor_arguments_like_ports &&
+          Context().DirectParentsAre(
+              {NodeEnum::kParenGroup, NodeEnum::kClassNew}) &&
+          std::all_of(node.children().begin(), node.children().end(),
+                      [](const verible::SymbolPtr &p) {
+                        // Only named arguments, separated by commas.
+                        return p == nullptr ||
+                               p->Tag().tag == static_cast<int>(
+                                                   NodeEnum::kParamByName) ||
+                               p->Tag() == verible::LeafTag(',');
+                      })) {
+        // Named constructor arguments, laid out like named port connections:
+        // one per line (aligned by Formatter, see TabularAlignTokenPartitions).
+        VisitIndentedSection(node, style_.NamedPortIndentation(),
+                             PartitionPolicyEnum::kAlwaysExpand);
+      } else if (Context().DirectParentsAre({NodeEnum::kParenGroup,
                                       NodeEnum::kReferenceCallBase,
                                       NodeEnum::kFunctionCall}) &&
           Context().IsInside(NodeEnum::kAlwaysStatement) &&

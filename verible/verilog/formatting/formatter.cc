@@ -543,7 +543,11 @@ static void DeterminePartitionExpansion(
         auto look_for_arglist = [](const partition_node_type &child) {
           const auto &node_view_child = child.Value();
           const UnwrappedLine &uwline_child = node_view_child.Value();
-          return (uwline_child.Origin() &&
+          // Argument lists laid out one per line (named constructor arguments
+          // like port connections) are not joined.
+          return (uwline_child.PartitionPolicy() !=
+                      PartitionPolicyEnum::kAlwaysExpand &&
+                  uwline_child.Origin() &&
                   uwline_child.Origin()->Kind() == verible::SymbolKind::kNode &&
                   verible::SymbolCastToNode(*uwline_child.Origin())
                       .MatchesTag(NodeEnum::kArgumentList));
@@ -948,6 +952,17 @@ Status Formatter::Format(const ExecutionControl &control) {
         case PartitionPolicyEnum::kWrap:
         case PartitionPolicyEnum::kJuxtapositionOrIndentedStack:
           verible::OptimizeTokenPartitionTree(style_, &node);
+          break;
+        case PartitionPolicyEnum::kAlwaysExpand:
+          // Named constructor arguments laid out like port connections, see
+          // TreeUnwrapper.
+          if (style_.named_constructor_arguments_like_ports &&
+              uwline.Origin() != nullptr &&
+              uwline.Origin()->Tag() ==
+                  verible::NodeTag(NodeEnum::kArgumentList)) {
+            AlignNamedConstructorArguments(style_, full_text, disabled_ranges_,
+                                           &node);
+          }
           break;
         case PartitionPolicyEnum::kTabularAlignment:
           // TODO(b/145170750): Adjust inter-token spacing to achieve alignment,

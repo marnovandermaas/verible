@@ -295,6 +295,22 @@ static bool TokenForcesLineBreak(const PreFormatToken &ftoken) {
   }
 }
 
+// Returns true if a token after the first one of the partition forces a line
+// break, e.g. after an EOL comment. Aligning such a partition as one row would
+// join the comment and the code that follows it on one line.
+static bool PartitionHasForcedLineBreak(const TokenPartitionTree &partition) {
+  const auto token_range = partition.Value().TokensRange();
+  if (token_range.empty()) return false;
+  return std::any_of(
+      token_range.begin() + 1, token_range.end(),
+      [&token_range](const PreFormatToken &ftoken) {
+        return ftoken.before.break_decision ==
+                   verible::SpacingOptions::kMustWrap ||
+               (ftoken.TokenEnum() == verilog_tokentype::TK_EOL_COMMENT &&
+                &ftoken != &token_range.back());
+      });
+}
+
 static bool IgnoreMultilineCaseStatements(const TokenPartitionTree &partition) {
   if (IgnoreCommentsAndPreprocessingDirectives(partition)) return true;
 
@@ -308,16 +324,29 @@ static bool IgnoreMultilineCaseStatements(const TokenPartitionTree &partition) {
   }
 
   // Comments inside the case item force line breaks too, e.g. an EOL comment
-  // after the case label. Aligning such an item would join the comment and
-  // the statement on one line.
-  return std::any_of(
-      token_range.begin() + 1, token_range.end(),
-      [&token_range](const PreFormatToken &ftoken) {
-        return ftoken.before.break_decision ==
-                   verible::SpacingOptions::kMustWrap ||
-               (ftoken.TokenEnum() == verilog_tokentype::TK_EOL_COMMENT &&
-                &ftoken != &token_range.back());
-      });
+  // after the case label.
+  return PartitionHasForcedLineBreak(partition);
+}
+
+// Ignores statements that span multiple lines: with a forced line break, or
+// with a part that is always expanded, e.g. named constructor arguments laid
+// out like port connections.
+static bool HasAlwaysExpandedSubpartition(const TokenPartitionTree &partition) {
+  for (const auto &child : partition.Children()) {
+    if ((child.Children().size() > 1 &&
+         child.Value().PartitionPolicy() ==
+             verible::PartitionPolicyEnum::kAlwaysExpand) ||
+        HasAlwaysExpandedSubpartition(child)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool IgnoreMultilineStatements(const TokenPartitionTree &partition) {
+  if (IgnoreCommentsAndPreprocessingDirectives(partition)) return true;
+  return PartitionHasForcedLineBreak(partition) ||
+         HasAlwaysExpandedSubpartition(partition);
 }
 
 class VerilogColumnSchemaScanner : public ColumnSchemaScanner {
@@ -441,6 +470,38 @@ class ActualNamedParameterColumnSchemaScanner
            Context().DirectParentsAre(
                {NodeEnum::kParenGroup, NodeEnum::kParamByName}) &&
            !Context().IsInsideStartingFrom(NodeEnum::kParamByName, 2);
+  }
+};
+
+// This class marks up token-subranges in named arguments of class constructor
+// calls for alignment, like named port connections: ".name (value)".
+class NamedConstructorArgumentColumnSchemaScanner
+    : public VerilogColumnSchemaScanner {
+ public:
+  explicit NamedConstructorArgumentColumnSchemaScanner(const FormatStyle &style)
+      : VerilogColumnSchemaScanner(style) {}
+
+ protected:
+  void Visit(const SyntaxTreeNode &node) final {
+    // The scanner starts at the row's kParamByName. Columns are only created
+    // for it, not for named arguments of calls nested in its value.
+    switch (NodeEnum(node.Tag().tag)) {
+      case NodeEnum::kParamByName:
+        if (!Context().IsInside(NodeEnum::kParamByName)) {
+          ReserveNewColumn(node, FlushLeft);
+        }
+        break;
+      case NodeEnum::kParenGroup:
+        // Second column starts at the open parenthesis.
+        if (Context().DirectParentIs(NodeEnum::kParamByName) &&
+            !Context().IsInsideStartingFrom(NodeEnum::kParamByName, 1)) {
+          ReserveNewColumn(node, FlushLeft);
+        }
+        break;
+      default:
+        break;
+    }
+    TreeContextPathVisitor::Visit(node);
   }
 };
 
@@ -752,6 +813,7 @@ enum class AlignableSyntaxSubtype {
   kNonBlockingAssignment,
   kDistItem,  // Distribution items.
   kIfElseBranches,  // Branches of if/else-if/else chains.
+  kNamedConstructorArguments,  // Named arguments of new(...).
 };
 
 static AlignedPartitionClassification AlignClassify(
@@ -1646,6 +1708,11 @@ static const AlignmentHandlerMapType &AlignmentHandlerLibrary() {
        {UnstyledAlignmentCellScannerGenerator<DistItemColumnSchemaScanner>(),
         function_from_pointer_to_member(
             &FormatStyle::distribution_items_alignment)}},
+      {AlignableSyntaxSubtype::kNamedConstructorArguments,
+       {UnstyledAlignmentCellScannerGenerator<
+            NamedConstructorArgumentColumnSchemaScanner>(
+            non_tree_column_scanner),
+        function_from_pointer_to_member(&FormatStyle::named_port_alignment)}},
       {AlignableSyntaxSubtype::kIfElseBranches,
        {[](const FormatStyle &) {
           return verible::AlignmentCellScannerFunction(
@@ -1812,8 +1879,7 @@ static std::vector<AlignablePartitionGroup> AlignStatements(
     return GetAlignableStatementGroups(range, vstyle.alignment_group_boundary);
   };
   return ExtractAlignablePartitionGroupsWithBoundary(
-      group_extractor, &IgnoreCommentsAndPreprocessingDirectives, full_range,
-      vstyle);
+      group_extractor, &IgnoreMultilineStatements, full_range, vstyle);
 }
 
 static std::vector<AlignablePartitionGroup> AlignDistItems(
@@ -1843,6 +1909,32 @@ static std::vector<AlignablePartitionGroup> AlignIfElseBranches(
   return ExtractAlignablePartitionGroups(
       PartitionBetweenBlankLines(AlignableSyntaxSubtype::kIfElseBranches),
       &IsMultilineIfElseBranch, full_range, vstyle);
+}
+
+// Ignores comments and arguments other than ".name (value)".
+static bool IgnoreWithinNamedConstructorArguments(
+    const TokenPartitionTree &partition) {
+  if (IgnoreCommentsAndPreprocessingDirectives(partition)) return true;
+  const verible::Symbol *origin = partition.Value().Origin();
+  return origin == nullptr ||
+         origin->Tag() != verible::NodeTag(NodeEnum::kParamByName) ||
+         !TokensHaveParenthesis(partition.Value().TokensRange());
+}
+
+void AlignNamedConstructorArguments(const FormatStyle &style,
+                                    std::string_view full_text,
+                                    const ByteOffsetSet &disabled_byte_ranges,
+                                    TokenPartitionTree *partition_ptr) {
+  const ExtractAlignmentGroupsFunction extract_alignment_groups =
+      [&style](const TokenPartitionRange &full_range) {
+        return ExtractAlignablePartitionGroups(
+            PartitionBetweenBlankLines(
+                AlignableSyntaxSubtype::kNamedConstructorArguments),
+            &IgnoreWithinNamedConstructorArguments, full_range, style);
+      };
+  verible::TabularAlignTokens(style.column_limit, full_text,
+                              disabled_byte_ranges, extract_alignment_groups,
+                              partition_ptr);
 }
 
 // Returns true if the partition's rows are the branches of an if/else chain.

@@ -87,6 +87,10 @@ To pipe from stdin, use '-' as <file>.
       name and '(' of named port connections and named parameter
       assignments, e.g. ".clk_i (clk)" and "#(.Width (8))". If false
       (default), no space is inserted, e.g. ".clk_i(clk)".); default: false;
+    --named_constructor_arguments_like_ports (If true, format the named
+      arguments of class constructor calls (new(...)) like named port
+      connections of module instances: one per line, aligned according to
+      --named_port_alignment.); default: false;
     --named_parameter_alignment (Format named actual parameters:
       {align,flush-left,preserve,infer}); default: infer;
     --named_parameter_indentation (Indent named parameter assignments:

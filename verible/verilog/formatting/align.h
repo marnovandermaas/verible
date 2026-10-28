@@ -32,6 +32,14 @@ void TabularAlignTokenPartitions(
     const verible::ByteOffsetSet &disabled_byte_ranges,
     verible::TokenPartitionTree *partition_ptr);
 
+// Aligns the named arguments of a class constructor call like named port
+// connections, see FormatStyle::named_constructor_arguments_like_ports.
+// The partition is the constructor call's argument list.
+void AlignNamedConstructorArguments(
+    const FormatStyle &style, std::string_view full_text,
+    const verible::ByteOffsetSet &disabled_byte_ranges,
+    verible::TokenPartitionTree *partition_ptr);
+
 }  // namespace formatter
 }  // namespace verilog
 

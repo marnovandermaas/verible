@@ -152,6 +152,25 @@ static bool IsNamedParameterParen(const SyntaxTreeContext &context) {
                                    NodeEnum::kActualParameterByNameList});
 }
 
+// Returns true if a parenthesis token with the given context belongs directly
+// to a named argument of a class constructor call whose arguments are all
+// named, e.g. the parentheses of "new(.name (n), .depth (8))".
+static bool IsNamedConstructorArgumentParen(const SyntaxTreeContext &context) {
+  if (!context.DirectParentsAre({NodeEnum::kParenGroup, NodeEnum::kParamByName,
+                                 NodeEnum::kArgumentList, NodeEnum::kParenGroup,
+                                 NodeEnum::kClassNew})) {
+    return false;
+  }
+  const verible::SyntaxTreeNode &arguments = **(context.rbegin() + 2);
+  return std::all_of(arguments.children().begin(), arguments.children().end(),
+                     [](const verible::SymbolPtr &p) {
+                       return p == nullptr ||
+                              p->Tag() == verible::NodeTag(
+                                              NodeEnum::kParamByName) ||
+                              p->Tag() == verible::LeafTag(',');
+                     });
+}
+
 static bool IsAnySemicolon(const PreFormatToken &ftoken) {
   // These are just syntactically disambiguated versions of ';'.
   return ftoken.TokenEnum() == ';' ||
@@ -375,7 +394,9 @@ static WithReason<int> SpacesRequiredBetween(
       if (style.named_connection_paren_space &&
           (right_context.DirectParentsAre(
                {NodeEnum::kParenGroup, NodeEnum::kActualNamedPort}) ||
-           IsNamedParameterParen(right_context))) {
+           IsNamedParameterParen(right_context) ||
+           (style.named_constructor_arguments_like_ports &&
+            IsNamedConstructorArgumentParen(right_context)))) {
         return {1, "Named connection: want space between ID and '('"};
       }
       // TODO(fangism): This logic should use .DirectParentIs() to minimize risk

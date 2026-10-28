@@ -3323,6 +3323,61 @@ TEST(FormatterEndToEndTest, AlignFormatterTestCases) {
   RunFormatterTestCases40(kAlignFormatterTestCases);
 }
 
+TEST(FormatterEndToEndTest, NamedConstructorArgumentsLikePorts) {
+  static constexpr FormatterTestCase kTestCases[] = {
+      {"class c;\n"
+       "function void f();\n"
+       "x = new(.name(\"x\"), .depth(8));\n"
+       "y = new(.a(1));\n"
+       "z = new(1, .b(2));\n"
+       "w = foo(.a(1), .bb(2));\n"
+       "endfunction\n"
+       "endclass\n",
+       "class c;\n"
+       "  function void f();\n"
+       "    x = new(\n"
+       "        .name  (\"x\"),\n"
+       "        .depth (8)\n"
+       "    );\n"
+       "    y = new(.a (1));\n"
+       "    z = new(1, .b(2));\n"
+       "    w = foo(.a(1), .bb(2));\n"
+       "  endfunction\n"
+       "endclass\n"},
+  };
+  FormatStyle style;
+  style.column_limit = 60;
+  style.indentation_spaces = 2;
+  style.wrap_spaces = 4;
+  style.named_constructor_arguments_like_ports = true;
+  style.named_connection_paren_space = true;
+  RunFormatterTestCases(style, kTestCases);
+}
+
+TEST(FormatterEndToEndTest, StatementWithCommentNotAligned) {
+  // An EOL comment inside a statement must not be joined with the code after
+  // it by statement alignment.
+  static constexpr FormatterTestCase kTestCases[] = {
+      {"module m;\n"
+       "always_comb begin\n"
+       "x = foo(a, // first\n"
+       "bbbbbb);\n"
+       "y = 1;\n"
+       "end\n"
+       "endmodule\n",
+       "module m;\n"
+       "  always_comb begin\n"
+       "    x = foo(\n"
+       "      a,  // first\n"
+       "      bbbbbb\n"
+       "    );\n"
+       "    y = 1;\n"
+       "  end\n"
+       "endmodule\n"},
+  };
+  RunFormatterTestCases40(kTestCases);
+}
+
 TEST(FormatterEndToEndTest, TrailingCommentsAlignedByRun) {
   static constexpr FormatterTestCase kTestCases[] = {
       // comments align within runs of adjacent rows only

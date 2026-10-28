@@ -120,6 +120,10 @@ ABSL_FLAG(AlignmentPolicy, parameter_declaration_alignment,
           "(class body parameter declarations are NOT affected, unless "
           "--align_class_parameter_declarations): "
           "{align,flush-left,preserve,infer}");
+ABSL_FLAG(bool, named_constructor_arguments_like_ports, false,
+          "If true, format the named arguments of class constructor calls "
+          "(new(...)) like named port connections of module instances: one "
+          "per line, aligned according to --named_port_alignment.");
 ABSL_FLAG(bool, align_class_parameter_declarations, false,
           "If true, also align parameter/localparam declarations in class "
           "bodies, following --parameter_declaration_alignment.");
@@ -245,6 +249,7 @@ void InitializeFromFlags(FormatStyle *style) {
   STYLE_FROM_FLAG(parameter_declaration_alignment);
   STYLE_FROM_FLAG(parameter_declarations_align_dimensions);
   STYLE_FROM_FLAG(align_class_parameter_declarations);
+  STYLE_FROM_FLAG(named_constructor_arguments_like_ports);
   STYLE_FROM_FLAG(class_member_variable_alignment);
   STYLE_FROM_FLAG(case_items_alignment);
   STYLE_FROM_FLAG(distribution_items_alignment);

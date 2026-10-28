@@ -125,6 +125,15 @@ struct FormatStyle : public verible::BasicFormatStyle {
   // parameter_declaration_alignment.
   bool align_class_parameter_declarations = false;
 
+  // Format the named arguments of class constructor calls like named port
+  // connections of module instances: one per line, aligned according to
+  // named_port_alignment, with named_connection_paren_space applied, e.g.
+  //   obj = new(
+  //     .name  ("obj"),
+  //     .depth (8)
+  //   );
+  bool named_constructor_arguments_like_ports = false;
+
   // Control how class member variables are formatted.
   // Internal tests assume these are forced to kAlign.
   AlignmentPolicy class_member_variable_alignment = AlignmentPolicy::kAlign;
