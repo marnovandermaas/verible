@@ -531,6 +531,40 @@ class TypedefColumnSchemaScanner : public VerilogColumnSchemaScanner {
   }
 };
 
+// This class marks up token-subranges in members of assignment patterns for
+// alignment: "<key>: <value>", aligning the values.
+class AssignmentPatternMemberColumnSchemaScanner
+    : public VerilogColumnSchemaScanner {
+ public:
+  explicit AssignmentPatternMemberColumnSchemaScanner(const FormatStyle &style)
+      : VerilogColumnSchemaScanner(style) {}
+
+ protected:
+  void Visit(const SyntaxTreeNode &node) final {
+    // The row's origin: first column, "<key>:".
+    if (Context().empty() && node.MatchesTag(NodeEnum::kPatternExpression)) {
+      ReserveNewColumn(node, FlushLeft);
+    } else if (IsValue()) {
+      // Second column, the value. Nested patterns are not aligned.
+      ReserveNewColumn(node, FlushLeft);
+      return;
+    }
+    TreeContextPathVisitor::Visit(node);
+  }
+
+  void Visit(const SyntaxTreeLeaf &leaf) final {
+    if (IsValue()) ReserveNewColumn(leaf, FlushLeft);
+  }
+
+ private:
+  // The value is a direct child after the key and the ':'.
+  bool IsValue() const {
+    return Context().size() == 1 &&
+           Context().DirectParentIs(NodeEnum::kPatternExpression) &&
+           Path() == SyntaxTreePath{2};
+  }
+};
+
 // This class marks up token-subranges in named port connections for alignment.
 // e.g. ".port_name(net_name)"
 class ActualNamedPortColumnSchemaScanner : public VerilogColumnSchemaScanner {
@@ -841,6 +875,7 @@ enum class AlignableSyntaxSubtype {
   kIfElseBranches,  // Branches of if/else-if/else chains.
   kNamedConstructorArguments,  // Named arguments of new(...).
   kTypedef,                    // Single-line typedefs.
+  kAssignmentPatternMember,    // "<key>: <value>" in assignment patterns.
 };
 
 static AlignedPartitionClassification AlignClassify(
@@ -1765,6 +1800,12 @@ static const AlignmentHandlerMapType &AlignmentHandlerLibrary() {
        {UnstyledAlignmentCellScannerGenerator<TypedefColumnSchemaScanner>(
             non_tree_column_scanner),
         function_from_pointer_to_member(&FormatStyle::typedef_alignment)}},
+      {AlignableSyntaxSubtype::kAssignmentPatternMember,
+       {UnstyledAlignmentCellScannerGenerator<
+            AssignmentPatternMemberColumnSchemaScanner>(
+            non_tree_column_scanner),
+        function_from_pointer_to_member(
+            &FormatStyle::assignment_pattern_alignment)}},
       {AlignableSyntaxSubtype::kIfElseBranches,
        {[](const FormatStyle &) {
           return verible::AlignmentCellScannerFunction(
@@ -1983,6 +2024,44 @@ void AlignNamedConstructorArguments(const FormatStyle &style,
             PartitionBetweenBlankLines(
                 AlignableSyntaxSubtype::kNamedConstructorArguments),
             &IgnoreWithinNamedConstructorArguments, full_range, style);
+      };
+  verible::TabularAlignTokens(style.column_limit, full_text,
+                              disabled_byte_ranges, extract_alignment_groups,
+                              partition_ptr);
+}
+
+// Ignores comments and members of assignment patterns that span multiple lines.
+static bool IgnoreMultilineAssignmentPatternMembers(
+    const TokenPartitionTree &partition) {
+  return IgnoreCommentsAndPreprocessingDirectives(partition) ||
+         PartitionHasForcedLineBreak(partition);
+}
+
+void AlignAssignmentPatternMembers(const FormatStyle &style,
+                                   std::string_view full_text,
+                                   const ByteOffsetSet &disabled_byte_ranges,
+                                   TokenPartitionTree *partition_ptr) {
+  // Consecutive "<key>: <value>" members, without the pattern's opening and
+  // closing lines.
+  const auto group_extractor = [](const TokenPartitionRange &range) {
+    return verible::GetPartitionAlignmentSubranges(
+        range, [](const TokenPartitionTree &partition)
+                   -> AlignedPartitionClassification {
+          const Symbol *origin = partition.Value().Origin();
+          if (origin == nullptr) return {AlignmentGroupAction::kIgnore};
+          if (origin->Tag() !=
+              verible::NodeTag(NodeEnum::kPatternExpression)) {
+            return {AlignmentGroupAction::kNoMatch};
+          }
+          return AlignClassify(AlignmentGroupAction::kMatch,
+                               AlignableSyntaxSubtype::kAssignmentPatternMember);
+        });
+  };
+  const ExtractAlignmentGroupsFunction extract_alignment_groups =
+      [&style, &group_extractor](const TokenPartitionRange &full_range) {
+        return ExtractAlignablePartitionGroupsWithBoundary(
+            group_extractor, &IgnoreMultilineAssignmentPatternMembers,
+            full_range, style);
       };
   verible::TabularAlignTokens(style.column_limit, full_text,
                               disabled_byte_ranges, extract_alignment_groups,

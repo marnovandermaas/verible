@@ -40,6 +40,14 @@ void AlignNamedConstructorArguments(
     const verible::ByteOffsetSet &disabled_byte_ranges,
     verible::TokenPartitionTree *partition_ptr);
 
+// Aligns the values of "<key>: <value>" members of an assignment pattern, see
+// FormatStyle::assignment_pattern_alignment. The partition is the one
+// containing the pattern's members, which must not fit on one line.
+void AlignAssignmentPatternMembers(
+    const FormatStyle &style, std::string_view full_text,
+    const verible::ByteOffsetSet &disabled_byte_ranges,
+    verible::TokenPartitionTree *partition_ptr);
+
 }  // namespace formatter
 }  // namespace verilog
 

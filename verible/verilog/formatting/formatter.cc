@@ -964,6 +964,15 @@ Status Formatter::Format(const ExecutionControl &control) {
                                            &node);
           }
           break;
+        case PartitionPolicyEnum::kFitOnLineElseExpand:
+          // Members of assignment patterns that are expanded one per line.
+          if (style_.assignment_pattern_alignment !=
+                  verible::AlignmentPolicy::kFlushLeft &&
+              !verible::FitsOnLine(uwline, style_).fits) {
+            AlignAssignmentPatternMembers(style_, full_text, disabled_ranges_,
+                                          &node);
+          }
+          break;
         case PartitionPolicyEnum::kTabularAlignment:
           // TODO(b/145170750): Adjust inter-token spacing to achieve alignment,
           // but leave partitioning intact.

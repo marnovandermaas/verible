@@ -3361,6 +3361,50 @@ TEST(FormatterEndToEndTest, TypedefAlignment) {
   RunFormatterTestCases(style, kTestCases);
 }
 
+TEST(FormatterEndToEndTest, AssignmentPatternAlignment) {
+  static constexpr FormatterTestCase kTestCases[] = {
+      // values of members are aligned when the pattern is expanded
+      {"module m;\n"
+       "localparam cfg_t Cfg = '{NoPorts: 32'd2, MaxTransfer: 32'd10, "
+       "default: '0};\n"
+       "endmodule\n",
+       "module m;\n"
+       "  localparam cfg_t Cfg = '{\n"
+       "    NoPorts:     32'd2,\n"
+       "    MaxTransfer: 32'd10,\n"
+       "    default:     '0\n"
+       "  };\n"
+       "endmodule\n"},
+      // patterns that fit on one line are not padded
+      {"module m;\n"
+       "localparam cfg_t C = '{a: 1, bb: 2};\n"
+       "endmodule\n",
+       "module m;\n"
+       "  localparam cfg_t C = '{a: 1, bb: 2};\n"
+       "endmodule\n"},
+      // statements
+      {"module m;\n"
+       "initial begin\n"
+       "cfg = '{NoPorts: 32'd2, MaxTransfer: 32'd10};\n"
+       "end\n"
+       "endmodule\n",
+       "module m;\n"
+       "  initial begin\n"
+       "    cfg = '{\n"
+       "      NoPorts:     32'd2,\n"
+       "      MaxTransfer: 32'd10\n"
+       "    };\n"
+       "  end\n"
+       "endmodule\n"},
+  };
+  FormatStyle style;
+  style.column_limit = 40;
+  style.indentation_spaces = 2;
+  style.wrap_spaces = 2;
+  style.assignment_pattern_alignment = AlignmentPolicy::kAlign;
+  RunFormatterTestCases(style, kTestCases);
+}
+
 TEST(FormatterEndToEndTest, NamedConstructorArgumentsLikePorts) {
   static constexpr FormatterTestCase kTestCases[] = {
       {"class c;\n"

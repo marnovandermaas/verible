@@ -43,6 +43,9 @@ To pipe from stdin, use '-' as <file>.
       trailing comment without such neighbours directly follows its code. If
       false (default), trailing comments are aligned across the whole
       group.); default: false;
+    --assignment_pattern_alignment (Align the values of "<key>: <value>"
+      members of assignment patterns that span multiple lines:
+      {align,flush-left,preserve,infer}); default: flush-left;
     --assignment_statement_alignment (Format various assignments in
       module, generate, interface, and package bodies:
       {align,flush-left,preserve,infer}); default: infer;

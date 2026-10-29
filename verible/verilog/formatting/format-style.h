@@ -160,6 +160,15 @@ struct FormatStyle : public verible::BasicFormatStyle {
   // Defaults to kFlushLeft, the behavior before this option existed.
   AlignmentPolicy typedef_alignment = AlignmentPolicy::kFlushLeft;
 
+  // Control how the values of "<key>: <value>" members of assignment patterns
+  // that span multiple lines are aligned:
+  //   localparam cfg_t Cfg = '{
+  //     NoPorts:     32'd2,
+  //     MaxTransfer: 32'd10
+  //   };
+  // Defaults to kFlushLeft, the behavior before this option existed.
+  AlignmentPolicy assignment_pattern_alignment = AlignmentPolicy::kFlushLeft;
+
   bool port_declarations_right_align_packed_dimensions = false;
   bool port_declarations_right_align_unpacked_dimensions = false;
 
@@ -267,6 +276,7 @@ struct FormatStyle : public verible::BasicFormatStyle {
     distribution_items_alignment = policy;
     if_else_statement_alignment = policy;
     typedef_alignment = policy;
+    assignment_pattern_alignment = policy;
   }
 };
 
