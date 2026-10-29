@@ -505,6 +505,32 @@ class NamedConstructorArgumentColumnSchemaScanner
   }
 };
 
+// This class marks up token-subranges in single-line typedefs for alignment:
+// "typedef <type> <name> [<unpacked dimensions>];", aligning the names.
+class TypedefColumnSchemaScanner : public VerilogColumnSchemaScanner {
+ public:
+  explicit TypedefColumnSchemaScanner(const FormatStyle &style)
+      : VerilogColumnSchemaScanner(style) {}
+
+ protected:
+  void Visit(const SyntaxTreeNode &node) final {
+    // The row's origin: first column, "typedef <type>".
+    if (Context().empty() && node.MatchesTag(NodeEnum::kTypeDeclaration)) {
+      ReserveNewColumn(node, FlushLeft);
+    }
+    TreeContextPathVisitor::Visit(node);
+  }
+
+  void Visit(const SyntaxTreeLeaf &leaf) final {
+    // The declared name, a direct child after the type: second column.
+    if (Context().size() == 1 &&
+        Context().DirectParentIs(NodeEnum::kTypeDeclaration) &&
+        Path() == SyntaxTreePath{2}) {
+      ReserveNewColumn(leaf, FlushLeft);
+    }
+  }
+};
+
 // This class marks up token-subranges in named port connections for alignment.
 // e.g. ".port_name(net_name)"
 class ActualNamedPortColumnSchemaScanner : public VerilogColumnSchemaScanner {
@@ -814,6 +840,7 @@ enum class AlignableSyntaxSubtype {
   kDistItem,  // Distribution items.
   kIfElseBranches,  // Branches of if/else-if/else chains.
   kNamedConstructorArguments,  // Named arguments of new(...).
+  kTypedef,                    // Single-line typedefs.
 };
 
 static AlignedPartitionClassification AlignClassify(
@@ -823,6 +850,19 @@ static AlignedPartitionClassification AlignClassify(
     CHECK(subtype != AlignableSyntaxSubtype::kDontCare);
   }
   return {match, static_cast<int>(subtype)};
+}
+
+// Returns true for single-line typedefs without a body, which are aligned as
+// kTypedef rows. Typedefs of enums, structs and unions break the group.
+static bool IsAlignableTypedef(const TokenPartitionTree &partition,
+                               const SyntaxTreeNode &node) {
+  if (!node.MatchesTag(NodeEnum::kTypeDeclaration)) return false;
+  const auto tokens = partition.Value().TokensRange();
+  return std::none_of(tokens.begin(), tokens.end(),
+                      [](const PreFormatToken &t) {
+                        return t.TokenEnum() == '{';
+                      }) &&
+         !PartitionHasForcedLineBreak(partition);
 }
 
 static std::vector<TaggedTokenPartitionRange> GetConsecutiveModuleItemGroups(
@@ -845,6 +885,10 @@ static std::vector<TaggedTokenPartitionRange> GetConsecutiveModuleItemGroups(
           return AlignClassify(AlignmentGroupAction::kIgnore);
         }
         const SyntaxTreeNode &node = verible::SymbolCastToNode(*origin);
+        if (IsAlignableTypedef(partition, node)) {
+          return AlignClassify(AlignmentGroupAction::kMatch,
+                               AlignableSyntaxSubtype::kTypedef);
+        }
         // Align body-level parameter/localparam declarations.
         if (node.MatchesTag(NodeEnum::kParamDeclaration)) {
           return AlignClassify(
@@ -888,6 +932,10 @@ static std::vector<TaggedTokenPartitionRange> GetConsecutiveClassItemGroups(
           return {AlignmentGroupAction::kIgnore};
         }
         const SyntaxTreeNode &node = verible::SymbolCastToNode(*origin);
+        if (IsAlignableTypedef(partition, node)) {
+          return AlignClassify(AlignmentGroupAction::kMatch,
+                               AlignableSyntaxSubtype::kTypedef);
+        }
         // Align parameter/localparam declarations, like in module bodies.
         if (align_parameter_declarations &&
             node.MatchesTag(NodeEnum::kParamDeclaration)) {
@@ -1713,6 +1761,10 @@ static const AlignmentHandlerMapType &AlignmentHandlerLibrary() {
             NamedConstructorArgumentColumnSchemaScanner>(
             non_tree_column_scanner),
         function_from_pointer_to_member(&FormatStyle::named_port_alignment)}},
+      {AlignableSyntaxSubtype::kTypedef,
+       {UnstyledAlignmentCellScannerGenerator<TypedefColumnSchemaScanner>(
+            non_tree_column_scanner),
+        function_from_pointer_to_member(&FormatStyle::typedef_alignment)}},
       {AlignableSyntaxSubtype::kIfElseBranches,
        {[](const FormatStyle &) {
           return verible::AlignmentCellScannerFunction(

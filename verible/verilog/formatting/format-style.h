@@ -153,6 +153,13 @@ struct FormatStyle : public verible::BasicFormatStyle {
   // Defaults to kFlushLeft, the behavior before this option existed.
   AlignmentPolicy if_else_statement_alignment = AlignmentPolicy::kFlushLeft;
 
+  // Control how the names of consecutive single-line typedefs are aligned:
+  //   typedef logic [IdWidth-1:0]   id_t;
+  //   typedef logic [AddrWidth-1:0] addr_t;
+  // Typedefs with a body, like enums and structs, are not aligned.
+  // Defaults to kFlushLeft, the behavior before this option existed.
+  AlignmentPolicy typedef_alignment = AlignmentPolicy::kFlushLeft;
+
   bool port_declarations_right_align_packed_dimensions = false;
   bool port_declarations_right_align_unpacked_dimensions = false;
 
@@ -259,6 +266,7 @@ struct FormatStyle : public verible::BasicFormatStyle {
     enum_assignment_statement_alignment = policy;
     distribution_items_alignment = policy;
     if_else_statement_alignment = policy;
+    typedef_alignment = policy;
   }
 };
 

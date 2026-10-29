@@ -3323,6 +3323,44 @@ TEST(FormatterEndToEndTest, AlignFormatterTestCases) {
   RunFormatterTestCases40(kAlignFormatterTestCases);
 }
 
+TEST(FormatterEndToEndTest, TypedefAlignment) {
+  static constexpr FormatterTestCase kTestCases[] = {
+      // names of single-line typedefs are aligned; enums break the group
+      {"package p;\n"
+       "typedef logic [7:0] byte_t;\n"
+       "typedef int unsigned count_t;\n"
+       "typedef enum logic {A, B} e_t;\n"
+       "typedef foo_pkg::bar_t baz_t [4];\n"
+       "typedef bit b_t;\n"
+       "endpackage\n",
+       "package p;\n"
+       "  typedef logic [7:0]  byte_t;\n"
+       "  typedef int unsigned count_t;\n"
+       "  typedef enum logic {\n"
+       "    A,\n"
+       "    B\n"
+       "  } e_t;\n"
+       "  typedef foo_pkg::bar_t baz_t[4];\n"
+       "  typedef bit            b_t;\n"
+       "endpackage\n"},
+      // class bodies
+      {"class c;\n"
+       "typedef int i_t;\n"
+       "typedef logic [3:0] nibble_t;\n"
+       "endclass\n",
+       "class c;\n"
+       "  typedef int         i_t;\n"
+       "  typedef logic [3:0] nibble_t;\n"
+       "endclass\n"},
+  };
+  FormatStyle style;
+  style.column_limit = 60;
+  style.indentation_spaces = 2;
+  style.wrap_spaces = 4;
+  style.typedef_alignment = AlignmentPolicy::kAlign;
+  RunFormatterTestCases(style, kTestCases);
+}
+
 TEST(FormatterEndToEndTest, NamedConstructorArgumentsLikePorts) {
   static constexpr FormatterTestCase kTestCases[] = {
       {"class c;\n"

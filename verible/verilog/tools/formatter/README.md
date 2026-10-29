@@ -127,6 +127,8 @@ To pipe from stdin, use '-' as <file>.
     --try_wrap_long_lines (If true, let the formatter attempt to optimize line
       wrapping decisions where wrapping is needed, else leave them unformatted.
       This is a short-term measure to reduce risk-of-harm.); default: false;
+    --typedef_alignment (Align the names of consecutive single-line
+      typedefs: {align,flush-left,preserve,infer}); default: flush-left;
     --wrap_end_else_clauses (Split end and else keywords into separate lines);
       default: false;
     --alignment_group_boundary (Control what breaks alignment groups for module

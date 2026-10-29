@@ -140,6 +140,9 @@ ABSL_FLAG(AlignmentPolicy, case_items_alignment,
 ABSL_FLAG(AlignmentPolicy, distribution_items_alignment,
           AlignmentPolicy::kInferUserIntent,
           "Align distribution items: {align,flush-left,preserve,infer}");
+ABSL_FLAG(AlignmentPolicy, typedef_alignment, AlignmentPolicy::kFlushLeft,
+          "Align the names of consecutive single-line typedefs: "
+          "{align,flush-left,preserve,infer}");
 ABSL_FLAG(AlignmentPolicy, if_else_statement_alignment,
           AlignmentPolicy::kFlushLeft,
           "Align the statements of if/else-if/else chains in which every "
@@ -254,6 +257,7 @@ void InitializeFromFlags(FormatStyle *style) {
   STYLE_FROM_FLAG(case_items_alignment);
   STYLE_FROM_FLAG(distribution_items_alignment);
   STYLE_FROM_FLAG(if_else_statement_alignment);
+  STYLE_FROM_FLAG(typedef_alignment);
   STYLE_FROM_FLAG(port_declarations_right_align_packed_dimensions);
   STYLE_FROM_FLAG(port_declarations_right_align_unpacked_dimensions);
   STYLE_FROM_FLAG(try_wrap_long_lines);
